@@ -3,6 +3,34 @@
 // =========================================================================
 
 /**
+ * MOBILE RESPONSIVE FUNCTIONS
+ */
+
+// Toggle sidebar on mobile
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    if (sidebar && overlay) {
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+    }
+}
+
+// Close sidebar (called when navigating or clicking overlay)
+function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    if (sidebar && overlay) {
+        sidebar.classList.remove('active');
+        overlay.classList.remove('active');
+    }
+}
+
+// =========================================================================
+
+/**
  * SPA Router: সাইডবার মেনুতে ক্লিক করলে এই ফাংশনটি অন-ডিমান্ড 
  * নির্দিষ্ট কম্পোনেন্টের HTML এবং লজিককে মেইন স্ক্রিনে ইনজেক্ট করে।
  * @param {string} viewId - দ্য আইডি অফ দ্য ভিউ (e.g., 'dashboard', 'members', 'trainers', 'finance', 'crm')
@@ -10,6 +38,9 @@
 function navigateTo(viewId) {
     const mainContent = document.getElementById('main-content');
     if (!mainContent) return;
+
+    // Close sidebar on mobile when navigating
+    closeSidebar();
 
     // ১. সাইডবারের বাটনের লাল হাইলাইট অ্যাক্টিভ ক্লাস পরিবর্তন করা
     const navButtons = document.querySelectorAll('#sidebar-nav button');
@@ -98,5 +129,25 @@ function navigateTo(viewId) {
 // =========================================================================
 // পেজ প্রথমবার ব্রাউজারে লোড হওয়ার সাথে সাথে ডিফল্টভাবে ড্যাশবোর্ড পেজটি সিলেক্ট হয়ে সচল থাকবে
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize main page
     navigateTo('dashboard');
+    
+    // Mobile menu toggle event listener
+    const menuToggle = document.getElementById('menu-toggle');
+    if (menuToggle) {
+        menuToggle.addEventListener('click', toggleSidebar);
+    }
+    
+    // Close sidebar when overlay is clicked
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) {
+        overlay.addEventListener('click', closeSidebar);
+    }
+    
+    // Close sidebar when window is resized to desktop
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 768) {
+            closeSidebar();
+        }
+    });
 });
