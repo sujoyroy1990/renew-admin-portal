@@ -19,7 +19,7 @@ function getTrainersView() {
                 </div>
                 <button onclick="openTrainerActionModal('all', 'announcement')" class="bg-brandRed hover:bg-red-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-colors shadow">
                     <i class="ph ph-megaphone text-base"></i>
-                    <span>Broadcast Announcement</span>
+                    <span>Broadcast Announcement for Trainer</span>
                 </button>
             </div>
             
@@ -175,7 +175,7 @@ function openTrainerActionModal(trainerId, actionType) {
     } else if (actionType === 'notice') {
         title = `Issue Official Notice to ${targetName}`; iconClass = "ph ph-note text-purple-400"; placeholderText = "Write the official compliance or gym notice details here...";
     } else if (actionType === 'announcement') {
-        title = `Broadcast Announcement to All Trainers`; iconClass = "ph ph-megaphone text-brandRed"; placeholderText = "Type the public announcement that every trainer will see instantly...";
+        title = `Broadcast Announcement for Trainers`; iconClass = "ph ph-megaphone text-brandRed"; placeholderText = "Type the public announcement that every trainer will see instantly...";
     }
 
     modal.innerHTML = `
