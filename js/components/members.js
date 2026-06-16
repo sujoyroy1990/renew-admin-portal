@@ -26,6 +26,7 @@ function getMembersView() {
                                 <th class="py-3.5 px-6">Phone</th>
                                 <th class="py-3.5 px-6">Plan Type</th>
                                 <th class="py-3.5 px-6">Expiry Date</th>
+                                <th class="py-3.5 px-6">Due</th>
                                 <th class="py-3.5 px-6">Status</th>
                             </tr>
                         </thead>
@@ -84,11 +85,12 @@ function renderMembersTable() {
     }
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-gray-600">No members found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-gray-600">No members found.</td></tr>`;
         return;
     }
 
     tbody.innerHTML = filtered.map(m => {
+        const dueAmount = getMemberDueAmount(m);
         let statusBadge = m.status === 'active' ? 'bg-green-500/10 text-green-400 border-green-500/20' : (m.status === 'expiring' ? 'bg-red-500/10 text-brandRed border-red-500/20' : (m.status === 'at_risk' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'));
         return `
             <tr onclick="openMembershipCard('${m.id}')" class="hover:bg-white/[0.02] transition-colors cursor-pointer group">
@@ -99,6 +101,7 @@ function renderMembersTable() {
                 <td class="py-3.5 px-6 font-mono text-xs">${m.phone}</td>
                 <td class="py-3.5 px-6"><span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded">${m.plan}</span></td>
                 <td class="py-3.5 px-6 font-mono text-xs">${m.expiryDate}</td>
+                <td class="py-3.5 px-6 font-mono text-xs">${formatCurrency(dueAmount)}</td>
                 <td class="py-3.5 px-6"><span class="text-[10px] uppercase font-bold border px-2.5 py-1 rounded-full ${statusBadge}">${m.status === 'at_risk' ? 'At Risk' : m.status}</span></td>
             </tr>
         `;
@@ -111,6 +114,16 @@ function handleMemberSearch() {
 }
 function switchMemberTab(tab) {
     currentMemberTab = tab; renderMemberSubtabs(); renderMembersTable();
+}
+
+function getMemberDueAmount(member) {
+    if (!member || !member.status) return 0;
+    const dueMonths = member.status === 'at_risk' ? 2 : member.status === 'expired' ? 3 : 0;
+    return (member.monthlyFee || 0) * dueMonths;
+}
+
+function formatCurrency(amount) {
+    return `₹${(amount || 0).toLocaleString()}`;
 }
 
 // ==========================================
