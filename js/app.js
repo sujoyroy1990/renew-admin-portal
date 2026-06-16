@@ -5,7 +5,7 @@
 /**
  * SPA Router: সাইডবার মেনুতে ক্লিক করলে এই ফাংশনটি অন-ডিমান্ড 
  * নির্দিষ্ট কম্পোনেন্টের HTML এবং লজিককে মেইন স্ক্রিনে ইনজেক্ট করে।
- * @param {string} viewId - দ্য আইডি অফ দ্য ভিউ (e.g., 'dashboard', 'members', 'trainers', 'finance')
+ * @param {string} viewId - দ্য আইডি অফ দ্য ভিউ (e.g., 'dashboard', 'members', 'trainers', 'finance', 'crm')
  */
 function navigateTo(viewId) {
     const mainContent = document.getElementById('main-content');
@@ -17,7 +17,7 @@ function navigateTo(viewId) {
 
     // যে বাটনটিতে ক্লিক করা হয়েছে সেটি খুঁজে বের করে হাইলাইট ('active-nav') করা
     const currentButton = Array.from(navButtons).find(btn => 
-        btn.getAttribute('onclick').includes(`'${viewId}'`)
+        btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${viewId}'`)
     );
     if (currentButton) currentButton.classList.add('active-nav');
 
@@ -27,12 +27,12 @@ function navigateTo(viewId) {
         if (viewId === 'crm') {
             pageTitle.textContent = 'CRM & Leads';
         } else {
-            // প্রথম অক্ষর বড় হাতের করা (যেমন: finance -> Finance)
+            // প্রথম অক্ষর বড় হাতের করা (যেমন: finance -> Finance)
             pageTitle.textContent = viewId.charAt(0).toUpperCase() + viewId.slice(1);
         }
     }
 
-    // ৩. ডাইনামিক ভিউ ইনজেকশন ও কম্পোনেন্ট ইনিশিয়ালাইজেশন রাউটার লজিক
+    // ৩. ডাইনামিক ভিউ ইনজেকশন ও কম্পোনেন্ট ইনিশিয়ালাইজেশন রাউটার লজিক
     
     // --- ড্যাশবোর্ড মডিউল ---
     if (viewId === 'dashboard') {
@@ -56,10 +56,10 @@ function navigateTo(viewId) {
     // --- মেম্বার্স মডিউল ---
     else if (viewId === 'members') {
         mainContent.innerHTML = getMembersView(); // members.js থেকে এইচটিএমএল স্ট্রাকচার আনা
-        renderMembersPage();                     // সার্চ, ফিল্টার সাব-ট্যাব ও টেবিল ইনিশিয়ালাইজ
+        renderMembersPage();                     // সার্চ, ফিল্টার সাব-ট্যাব ও টেবিল ইনিশিয়ালাইজ
     } 
     
-    // --- ট্রেইনার্স মডিউল ---
+    // --- TRT/ট্রেইনার্স মডিউল ---
     else if (viewId === 'trainers') {
         mainContent.innerHTML = getTrainersView(); // trainers.js থেকে এইচটিএমএল স্ট্রাকচার আনা
         renderTrainersPage();                     // প্রোফাইল, KPIs, ফাইটার্স ও এডমিন অ্যাকশন রেন্ডার
@@ -68,10 +68,16 @@ function navigateTo(viewId) {
     // --- ফিন্যান্স ও বিলিং মডিউল ---
     else if (viewId === 'finance') {
         mainContent.innerHTML = getFinanceView(); // finance.js থেকে এইচটিএমএল স্ট্রাকচার আনা
-        renderFinancePage();                     // ক্যাশফ্লো উইজেটস, ইনভয়েস টেবিল ও ফিল্টারস ইনিশিয়ালাইজ
+        renderFinancePage();                     // ক্যাশফ্লো উইজেটস, ইনভয়েস টেবিল ও ফিল্টারস ইনিশিয়ালাইজ
     } 
     
-    // --- ফিউচার মডিউল ব্যাকআপ (CRM বা অন্যান্য) ---
+    // --- নতুন যুক্ত হওয়া অ্যাক্টিভ মডিউল: CRM & LEADS পাইপলাইন ---
+    else if (viewId === 'crm') {
+        mainContent.innerHTML = getCRMView();     // crm.js থেকে এইচটিএমএল স্ট্রাকচার আনা
+        renderCRMPage();                         // সিআরএম এর মেট্রিক্স, ওমনি মোডাল ও টেবিল সচল করা
+    }
+    
+    // --- ফিউচার মডিউল ব্যাকআপ (অন্যান্য মডিউল যা এখনও তৈরি হয়নি) ---
     else {
         mainContent.innerHTML = `
             <div class="h-full flex flex-col items-center justify-center space-y-4 border border-dashed border-gray-800 rounded-2xl p-8 bg-darkSurface/30">
@@ -90,7 +96,7 @@ function navigateTo(viewId) {
 // =========================================================================
 // APPLICATION INITIALIZER
 // =========================================================================
-// পেজ প্রথমবার ব্রাউজারে লোড হওয়ার সাথে সাথে ডিফল্টভাবে ড্যাশবোর্ড পেজটি সিলেক্ট হয়ে সচল থাকবে
+// পেজ প্রথমবার ব্রাউজারে লোড হওয়ার সাথে সাথে ডিফল্টভাবে ড্যাশবোর্ড পেজটি সিলেক্ট হয়ে সচল থাকবে
 document.addEventListener('DOMContentLoaded', () => {
     navigateTo('dashboard');
 });
