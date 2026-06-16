@@ -1,0 +1,21 @@
+/* Active Navigation State */
+.active-nav {
+    background-color: rgba(255, 0, 51, 0.1) !important;
+    color: #FF0033 !important;
+    border-right: 3px solid #FF0033;
+}
+
+/* Hide scrollbar for clean UI but keep functionality */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

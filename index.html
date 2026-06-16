@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R.E.N.E.W Admin Portal</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brandRed: '#FF0033',
+                        darkBg: '#121212',
+                        darkSurface: '#1E1E1E',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="css/style.css">
+    
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body class="bg-darkBg text-white h-screen flex overflow-hidden font-sans">
+
+    <aside class="w-64 bg-darkSurface border-r border-gray-800 flex flex-col transition-all duration-300">
+        <div class="h-16 flex items-center px-6 border-b border-gray-800">
+            <div class="bg-brandRed px-3 py-1 rounded text-white font-bold tracking-wider text-sm shadow-md">
+                R.E.N.E.W ADMIN
+            </div>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1" id="sidebar-nav">
+            <button onclick="navigateTo('dashboard')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors active-nav">
+                <i class="ph ph-squares-four text-xl"></i>
+                <span class="font-medium">Dashboard</span>
+            </button>
+            
+            <button onclick="navigateTo('members')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors">
+                <i class="ph ph-users text-xl"></i>
+                <span class="font-medium">Members</span>
+            </button>
+            
+            <button onclick="navigateTo('trainers')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors">
+                <i class="ph ph-barbell text-xl"></i>
+                <span class="font-medium">Trainers</span>
+            </button>
+            
+            <button onclick="navigateTo('finance')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors">
+                <i class="ph ph-wallet text-xl"></i>
+                <span class="font-medium">Finance</span>
+            </button>
+            
+            <button onclick="navigateTo('crm')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors">
+                <i class="ph ph-chart-line-up text-xl"></i>
+                <span class="font-medium">CRM & Leads</span>
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-gray-800">
+            <button class="w-full flex items-center space-x-3 px-4 py-2 rounded-lg text-gray-400 hover:bg-red-500/10 hover:text-red-500 transition-colors">
+                <i class="ph ph-sign-out text-xl"></i>
+                <span class="font-medium">Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-hidden">
+        
+        <header class="h-16 bg-darkSurface/80 backdrop-blur-md border-b border-gray-800 flex items-center justify-between px-8 z-10">
+            <h2 id="page-title" class="text-xl font-semibold tracking-wide">Dashboard</h2>
+            
+            <div class="flex items-center space-x-4">
+                <button class="text-gray-400 hover:text-white transition relative">
+                    <i class="ph ph-bell text-2xl"></i>
+                    <span class="absolute top-0 right-0 w-2 h-2 bg-brandRed rounded-full"></span>
+                </button>
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-brandRed to-orange-500 border-2 border-darkSurface cursor-pointer"></div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8 bg-darkBg relative" id="main-content">
+            </div>
+    </main>
+
+    <script src="js/mockData.js"></script>
+    
+    <script src="js/components/dashboard.js"></script>
+    <script src="js/components/members.js"></script>
+    <script src="js/components/trainers.js"></script>
+    <script src="js/components/finance.js"></script> <script src="js/app.js"></script>
+    
+    <script src="js/app.js"></script>
+</body>
+</html>
