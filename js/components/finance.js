@@ -1,5 +1,5 @@
 // =========================================================================
-// js/components/finance.js — FULL ERP WITH SECURITY PURGE & DYNAMIC EVENT LINK
+// js/components/finance.js — FULL ERP WITH SECURITY PURGE, EVENT LINK & PLAN CONFIG
 // =========================================================================
 
 let currentFinanceTab = 'all'; 
@@ -10,10 +10,22 @@ let selectedFormType = 'income';
 
 const ADMIN_SECURE_PASSWORD = "admin123";
 
+// ১. গ্লোবাল প্ল্যান ডাটাবেস (NEW LOGIC: For Members Plan Switching)
+if (!window.GYM_PLANS) {
+    window.GYM_PLANS = [
+        { id: "PLN-1", name: "Monthly Regular Track", fee: 1500 },
+        { id: "PLN-2", name: "Fighter Premium Track", fee: 2500 },
+        { id: "PLN-3", name: "PT Combo Track", fee: 4000 },
+        { id: "PLN-4", name: "Elite Annual Pack", fee: 15000 }
+    ];
+}
+
+// ২. গ্লোবাল ফিজ ডাটাবেস
 if (!window.GYM_FEES) {
     window.GYM_FEES = { "advance fee": 5000, "membership fee": 2500, "PT": 15000, "diet plan": 2000, "supplement": 3500, "Events booking": 4500, "other": 1000 };
 }
 
+// ৩. গ্লোবাল ট্রানজেকশন খাতা
 if (!window.MOCK_TRANSACTIONS) {
     window.MOCK_TRANSACTIONS = [
         { id: "TXN-001", type: "income", category: "PT", amount: 15000, date: "2026-06-01", status: "paid", mode: "UPI", description: "PT Combo - Sourav Ganguly", trainerId: "t1" },
@@ -37,6 +49,9 @@ function getFinanceView() {
                     <p class="text-xs text-gray-500">Manage security clearances, core configurations & active cash ledger flow.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
+                    <button onclick="window.openPlanManagerModal()" class="border border-indigo-500/30 hover:border-indigo-500 bg-indigo-950/20 hover:bg-indigo-900 text-indigo-300 text-xs font-bold px-3 py-2.5 rounded-lg transition-all flex items-center space-x-1.5 shadow">
+                        <i class="ph ph-list-numbers"></i><span>Plan Config</span>
+                    </button>
                     <button onclick="window.openFeesConfigModal()" class="border border-purple-500/30 hover:border-purple-500 bg-purple-950/20 hover:bg-purple-900 text-purple-300 text-xs font-bold px-3 py-2.5 rounded-lg transition-all flex items-center space-x-1.5 shadow">
                         <i class="ph ph-sliders"></i><span>Manage Base Fees</span>
                     </button>
@@ -229,6 +244,9 @@ function renderTrainerTargets() {
     if (!container) return;
 
     if (!window.TRAINER_TARGETS) { window.TRAINER_TARGETS = { "t1": 30000, "t2": 20000 }; }
+    
+    // Fallback if MOCK_TRAINERS is not loaded yet
+    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1", name: "Rajat Sharma"}, {id: "t2", name: "Vikram Singh"} ];
 
     container.innerHTML = `
         <div class="flex justify-between items-center border-b border-gray-800/60 pb-2 mb-3">
@@ -240,7 +258,7 @@ function renderTrainerTargets() {
             </button>
         </div>
         <div class="space-y-4 py-1 flex-1 flex flex-col justify-center">
-            ${MOCK_TRAINERS.map(t => {
+            ${trainersList.map(t => {
                 const target = window.TRAINER_TARGETS[t.id] || 0;
                 const sales = calculateTrainerSales(t.id);
                 const pct = target > 0 ? Math.min(Math.round((sales.totalRevenue / target) * 100), 100) : 0;
@@ -404,7 +422,6 @@ window.handleCategoryChange = function(val) {
         wrapper.classList.add('hidden');
         document.getElementById('form-event-no').value = '';
         document.getElementById('event-match-status').textContent = '';
-        // অন্য ক্যাটাগরিতে ফিরলে বেস ফি সেট করা
         amountInput.value = window.GYM_FEES[val] || '';
         amountInput.placeholder = "Leave empty to use base tariff";
     }
@@ -418,7 +435,7 @@ window.handleEventNoInput = function(val) {
     const amountInput = document.getElementById('form-amount');
 
     if (matched) {
-        amountInput.value = matched.amount; // অটো-ফিল অ্যামাউন্ট
+        amountInput.value = matched.amount; 
         if (status) {
             status.className = "text-[10px] text-green-400 mt-1 font-mono font-medium block";
             status.textContent = `✓ Active Event: ${matched.title} (Price: ₹${matched.amount})`;
@@ -466,6 +483,70 @@ window.submitFeesConfig = function() {
     });
     alert("Rates updated."); window.closeTransactionModal(); renderFinancePage();
 };
+
+// =========================================================================
+// NEW LOGIC: PLAN & PRICING MANAGER (For Member Portal Sync)
+// =========================================================================
+window.openPlanManagerModal = function() {
+    const modal = document.getElementById('transaction-modal');
+    if (!modal) return;
+
+    let plansHtml = window.GYM_PLANS.map((p, index) => `
+        <div class="flex items-center justify-between bg-black/60 border border-gray-800/80 p-3 rounded-xl mb-2.5 group hover:border-indigo-500/40 transition-colors">
+            <input type="text" id="plan-name-${index}" value="${p.name}" class="bg-transparent text-gray-200 text-xs font-bold w-1/2 focus:outline-none border-b border-transparent focus:border-indigo-500 py-0.5">
+            <div class="flex items-center space-x-1.5 bg-black/40 px-2.5 py-1 rounded-lg border border-gray-800">
+                <span class="text-indigo-400 font-mono font-bold text-xs">₹</span>
+                <input type="number" id="plan-fee-${index}" value="${p.fee}" class="bg-transparent text-green-400 text-xs font-mono font-bold w-16 text-right focus:outline-none">
+            </div>
+        </div>
+    `).join('');
+
+    modal.innerHTML = `
+        <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[380px] shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="bg-darkBg/95 rounded-[14px] p-6 flex flex-col relative text-xs">
+                <button onclick="window.closeTransactionModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg z-50"><i class="ph ph-x"></i></button>
+                <div class="flex items-center space-x-2 border-b border-gray-800 pb-3 mb-4">
+                    <i class="ph ph-list-numbers text-xl text-indigo-400"></i>
+                    <h3 class="font-bold text-white text-sm tracking-wide uppercase">Gym Plans Config</h3>
+                </div>
+                
+                <div class="max-h-[180px] overflow-y-auto pr-1 custom-scrollbar" id="plan-list-container">${plansHtml}</div>
+                
+                <div class="border-t border-gray-800 mt-4 pt-4 space-y-2.5 text-left">
+                    <h4 class="text-[10px] text-indigo-400 uppercase tracking-widest font-black">Deploy New Track</h4>
+                    <div class="flex space-x-2">
+                        <input type="text" id="new-plan-name" placeholder="Plan Title" class="w-2/3 bg-black/50 border border-gray-800 rounded-xl px-3 py-2 text-gray-300 focus:outline-none focus:border-indigo-500 text-xs">
+                        <input type="number" id="new-plan-fee" placeholder="Fee (₹)" class="w-1/3 bg-black/50 border border-gray-800 rounded-xl px-3 py-2 text-green-400 font-mono focus:outline-none focus:border-green-500 text-xs">
+                    </div>
+                </div>
+
+                <button onclick="window.savePlanConfig()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold py-2.5 rounded-xl mt-6 uppercase tracking-wider shadow-lg shadow-indigo-950/50">Save & Sync System</button>
+            </div>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    setTimeout(() => { modal.classList.remove('opacity-0'); modal.firstElementChild.classList.add('scale-100'); }, 10);
+    modal.onclick = window.closeTransactionModal;
+};
+
+window.savePlanConfig = function() {
+    window.GYM_PLANS.forEach((p, index) => {
+        p.name = document.getElementById(`plan-name-${index}`).value;
+        p.fee = parseFloat(document.getElementById(`plan-fee-${index}`).value);
+    });
+
+    const newName = document.getElementById('new-plan-name').value.trim();
+    const newFee = parseFloat(document.getElementById('new-plan-fee').value);
+
+    if (newName && !isNaN(newFee)) {
+        window.GYM_PLANS.push({ id: `PLN-${window.GYM_PLANS.length + 1}`, name: newName, fee: newFee });
+    }
+
+    alert("⚡ MASTER ERP SYNC COMPLETE:\nAll gym subscription plans and fee modifications are now dynamically applied across the system.");
+    window.closeTransactionModal();
+    renderFinancePage();
+};
+// =========================================================================
 
 window.simulateFighterRegistration = function() {
     const names = ["Arijit Das", "Sayan Mukherjee", "Ritam Chakraborty"];
@@ -524,25 +605,33 @@ window.closeTransactionModal = function() {
     setTimeout(() => { modal.classList.add('hidden'); }, 200);
 };
 
-window.closeTransactionModal = function() {
-    const modal = document.getElementById('transaction-modal'); if (!modal) return;
-    modal.classList.add('opacity-0'); if (modal.firstElementChild) { modal.firstElementChild.classList.remove('scale-100'); modal.firstElementChild.classList.add('scale-95'); }
-    setTimeout(() => { modal.classList.add('hidden'); }, 200);
-};
-
 window.openTargetModal = function() {
     const modal = document.getElementById('transaction-modal'); if (!modal) return;
-    const inputsHtml = MOCK_TRAINERS.map(t => { const currentTarget = window.TRAINER_TARGETS ? window.TRAINER_TARGETS[t.id] || 0 : 0; return `<div><label class="text-gray-400 text-[11px] font-semibold block mb-1 uppercase">${t.name}</label><div class="relative"><span class="absolute left-3 top-2 text-gray-600">₹</span><input type="number" id="target-input-${t.id}" value="${currentTarget}" class="w-full bg-black/50 border border-gray-800 rounded-lg pl-7 pr-3 py-2 text-xs text-gray-300 font-mono"></div></div>`; }).join('');
+    
+    // Safety check for MOCK_TRAINERS
+    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1", name: "Rajat Sharma"}, {id: "t2", name: "Vikram Singh"} ];
+
+    const inputsHtml = trainersList.map(t => { const currentTarget = window.TRAINER_TARGETS ? window.TRAINER_TARGETS[t.id] || 0 : 0; return `<div><label class="text-gray-400 text-[11px] font-semibold block mb-1 uppercase">${t.name}</label><div class="relative"><span class="absolute left-3 top-2 text-gray-600">₹</span><input type="number" id="target-input-${t.id}" value="${currentTarget}" class="w-full bg-black/50 border border-gray-800 rounded-lg pl-7 pr-3 py-2 text-xs text-gray-300 font-mono"></div></div>`; }).join('');
     modal.innerHTML = `<div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-80 shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()"><div class="bg-darkBg/95 rounded-[14px] p-5 flex flex-col relative text-xs"><button onclick="window.closeTransactionModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg z-50"><i class="ph ph-x"></i></button><div class="flex items-center space-x-2 border-b border-gray-800 pb-3 mb-4"><i class="ph ph-target text-xl text-purple-400"></i><h3 class="font-bold text-white text-sm">Set Monthly Revenue Goals</h3></div><div class="space-y-4 text-left">${inputsHtml}</div><button onclick="window.submitTrainerTargets()" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2.5 rounded-lg mt-5 shadow">Update Roster Targets</button></div></div>`;
     modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); modal.firstElementChild.classList.add('scale-100'); }, 10); modal.onclick = window.closeTransactionModal;
 };
 
-window.submitTrainerTargets = function() { MOCK_TRAINERS.forEach(t => { const input = document.getElementById(`target-input-${t.id}`); if (input) { window.TRAINER_TARGETS[t.id] = parseFloat(input.value) || 0; } }); alert("Targets updated."); window.closeTransactionModal(); renderFinancePage(); };
+window.submitTrainerTargets = function() { 
+    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1"}, {id: "t2"} ];
+    trainersList.forEach(t => { 
+        const input = document.getElementById(`target-input-${t.id}`); 
+        if (input) { window.TRAINER_TARGETS[t.id] = parseFloat(input.value) || 0; } 
+    }); 
+    alert("Targets updated."); window.closeTransactionModal(); renderFinancePage(); 
+};
 
 window.openTransactionModal = function() {
     const modal = document.getElementById('transaction-modal');
     if (!modal) return;
-    const trainerOptions = MOCK_TRAINERS.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    
+    // Safety check for MOCK_TRAINERS
+    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1", name: "Rajat Sharma"}, {id: "t2", name: "Vikram Singh"} ];
+    const trainerOptions = trainersList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
     modal.innerHTML = `
         <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[380px] shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
@@ -606,7 +695,7 @@ window.toggleFormType = function(type) {
     } else {
         btnInc.className = "py-1.5 font-bold rounded-md text-gray-400 hover:text-white"; btnExp.className = "py-1.5 font-bold rounded-md bg-brandRed text-white shadow";
         catInc.classList.add('hidden'); catExp.classList.remove('hidden'); trainerWrapper.classList.add('hidden');
-        if (eventWrapper) eventWrapper.classList.add('hidden'); // এক্সপেন্সে ইভেন্ট কোড লাগবে না
+        if (eventWrapper) eventWrapper.classList.add('hidden'); 
     }
 };
 
@@ -628,9 +717,7 @@ window.submitTransaction = function() {
         }
     }
 
-    // যদি ইভেন্ট বুকিং হয়, তবে ডিসক্রিপশনে ইভেন্ট নম্বরটি পুশ করে দেওয়া
     const finalDesc = (category === 'Events booking' && eventNo) ? `${desc} [${eventNo}]` : desc;
-
     const today = new Date();
     const formattedDate = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 
