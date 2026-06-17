@@ -11,12 +11,95 @@ if (!window.GYM_PLANS) {
 
 if (!window.MOCK_MEMBERS) {
     window.MOCK_MEMBERS = [
-        { id: "m-001", name: "Subham Das", phone: "+91 98300 11223", plan: "Monthly Regular Track", expiryDate: "2026-07-12", status: "active", photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150", checkedInToday: true, lastCheckIn: "2026-06-17 08:30 AM" },
-        { id: "m-002", name: "Joydeep Pal", phone: "+91 91632 55443", plan: "Fighter Premium Track", expiryDate: "2026-07-15", status: "active", photoUrl: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150", checkedInToday: false, portalLocked: true },
-        { id: "m-003", name: "Sourav Ganguly", phone: "+91 98311 99887", plan: "PT Combo Track", expiryDate: "2026-06-22", status: "expiring", photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150", checkedInToday: true, lastCheckIn: "2026-06-17 07:15 AM" },
-        { id: "m-004", name: "Anirban Das", phone: "+91 97482 33445", plan: "Elite Annual Pack", expiryDate: "2027-06-10", status: "active", photoUrl: "https://images.unsplash.com/photo-1620122303020-43ec4b6cf7f8?w=150", checkedInToday: false }
+        { id: "m-001", name: "Subham Das", phone: "+91 98300 11223", plan: "Monthly Regular Track", expiryDate: "2026-07-12", status: "active", photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150", checkedInToday: true, lastCheckIn: "2026-06-17 08:30 AM", paymentDate: null, firstScanDate: "2026-06-15", billingCycleStart: "2026-06-15", billingStatus: "active", autoLapseDate: null },
+        { id: "m-002", name: "Joydeep Pal", phone: "+91 91632 55443", plan: "Fighter Premium Track", expiryDate: "2026-07-15", status: "active", photoUrl: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150", checkedInToday: false, portalLocked: true, paymentDate: null, firstScanDate: "2026-06-10", billingCycleStart: "2026-06-10", billingStatus: "active", autoLapseDate: null },
+        { id: "m-003", name: "Sourav Ganguly", phone: "+91 98311 99887", plan: "PT Combo Track", expiryDate: "2026-06-22", status: "expiring", photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150", checkedInToday: true, lastCheckIn: "2026-06-17 07:15 AM", paymentDate: null, firstScanDate: "2026-05-20", billingCycleStart: "2026-05-20", billingStatus: "active", autoLapseDate: null },
+        { id: "m-004", name: "Anirban Das", phone: "+91 97482 33445", plan: "Elite Annual Pack", expiryDate: "2027-06-10", status: "active", photoUrl: "https://images.unsplash.com/photo-1620122303020-43ec4b6cf7f8?w=150", checkedInToday: false, paymentDate: null, firstScanDate: "2026-06-01", billingCycleStart: "2026-06-01", billingStatus: "active", autoLapseDate: null }
     ];
 }
+
+// =========================================================================
+// FIRST SCAN & AUTO-LAPSE ENGINE
+// =========================================================================
+window.initializeFirstScanEngine = function() {
+    // ইনিশিয়ালাইজ সকল নতুন মেম্বারদের স্ক্যান ট্র্যাকিং প্রপার্টিজ
+    window.MOCK_MEMBERS.forEach(m => {
+        if (!m.hasOwnProperty('paymentDate')) m.paymentDate = null;
+        if (!m.hasOwnProperty('firstScanDate')) m.firstScanDate = null;
+        if (!m.hasOwnProperty('billingCycleStart')) m.billingCycleStart = null;
+        if (!m.hasOwnProperty('billingStatus')) m.billingStatus = "pending"; // pending, active, lapsed
+        if (!m.hasOwnProperty('autoLapseDate')) m.autoLapseDate = null;
+    });
+};
+
+window.recordPaymentForMember = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return;
+    member.paymentDate = new Date().toISOString().slice(0, 10);
+    member.firstScanDate = null; // এখনো স্ক্যান হয়নি
+    member.billingCycleStart = null;
+    member.billingStatus = "pending"; // পেমেন্ট হয়েছে কিন্তু সাইকেল শুরু হয়নি
+    member.autoLapseDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10); // ৩০ দিন পর লাপ্স হবে
+};
+
+window.recordFirstEntranceScan = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return { success: false, message: "Member not found." };
+
+    // যদি ইতিমধ্যে স্ক্যান করা হয়েছে তাহলে দ্বিতীয় স্ক্যান রেকর্ড করা যাবে না
+    if (member.firstScanDate) {
+        return { success: false, message: `First entrance already recorded on ${member.firstScanDate}. Billing cycle started from that date.` };
+    }
+
+    // পেমেন্ট করেছে কি না চেক করা
+    if (!member.paymentDate) {
+        return { success: false, message: "Payment not found. Please record payment first." };
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const paymentDate = new Date(member.paymentDate);
+    const todayDate = new Date(today);
+    const daysDiff = Math.floor((todayDate - paymentDate) / (1000 * 60 * 60 * 24));
+
+    // ৩০ দিন অতিক্রম করেছে কি না চেক করা
+    if (daysDiff > 30) {
+        member.billingStatus = "lapsed";
+        member.firstScanDate = null; // স্ক্যান রেকর্ড করা হয়নি কারণ ৩০ দিন পেরিয়ে গেছে
+        return { 
+            success: false, 
+            message: `❌ AUTO-LAPSE TRIGGERED!\n\nPayment was made on ${member.paymentDate}. You didn't scan within 30 days.\n\nAccount has been automatically lapsed. You need to make a new payment to reactivate.`,
+            lapsed: true
+        };
+    }
+
+    // সফল স্ক্যান - বিলিং সাইকেল শুরু হচ্ছে
+    member.firstScanDate = today;
+    member.billingCycleStart = today;
+    member.billingStatus = "active";
+    member.autoLapseDate = null; // অটো লাপ্স ডেডলাইন আর প্রয়োজন নেই
+
+    return { 
+        success: true, 
+        message: `✅ ENTRANCE SCAN RECORDED!\n\nFirst scan date: ${today}\n\n🎯 Billing Cycle Started from TODAY (${today})\n\nMembership will remain active until ${member.expiryDate}.`,
+        daysAfterPayment: daysDiff
+    };
+};
+
+window.checkAndApplyAutoLapse = function() {
+    const today = new Date().toISOString().slice(0, 10);
+    const todayDate = new Date(today);
+
+    window.MOCK_MEMBERS.forEach(m => {
+        // যদি পেমেন্ট করা হয়েছে কিন্তু এখনো স্ক্যান না করা হয়েছে
+        if (m.paymentDate && !m.firstScanDate && m.autoLapseDate) {
+            const lapseDateObj = new Date(m.autoLapseDate);
+            if (todayDate >= lapseDateObj) {
+                m.billingStatus = "lapsed";
+                m.status = "inactive";
+            }
+        }
+    });
+};
 function getMembersView() {
     return `
         <div class="space-y-6">
@@ -39,6 +122,8 @@ function getMembersView() {
     `;
 }
 function renderMembersPage() {
+    window.initializeFirstScanEngine();
+    window.checkAndApplyAutoLapse();
     renderMemberFilterTabs();
     renderMembersGrid();
 }
@@ -116,9 +201,24 @@ window.openMemberProfile = function(memberId) {
     const allData = `Fighter ID: ${member.id}\nName: ${member.name}\nPhone: ${member.phone}\nPlan: ${member.plan}\nExpiry: ${member.expiryDate}\nLedger Status: ${dueAmount > 0 ? 'Due ₹' + dueAmount : 'Paid'}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(allData)}&bgcolor=ffffff&color=000000&margin=10`;
 
+    // বিলিং স্ট্যাটাস বাজ
+    let billingStatusBadge = '';
+    let billingStatusColor = 'text-gray-400';
+    if (member.billingStatus === 'active' && member.billingCycleStart) {
+        billingStatusBadge = `<span class="text-[8px] font-bold">🟢 ACTIVE (From ${member.billingCycleStart})</span>`;
+        billingStatusColor = 'text-green-400';
+    } else if (member.billingStatus === 'pending' && member.paymentDate) {
+        const daysRemaining = 30 - Math.floor((new Date() - new Date(member.paymentDate)) / (1000 * 60 * 60 * 24));
+        billingStatusBadge = `<span class="text-[8px] font-bold">🔵 PENDING SCAN (${daysRemaining} days left)</span>`;
+        billingStatusColor = 'text-blue-400';
+    } else if (member.billingStatus === 'lapsed') {
+        billingStatusBadge = `<span class="text-[8px] font-bold">🔴 AUTO-LAPSED</span>`;
+        billingStatusColor = 'text-red-400';
+    }
+
     modal.innerHTML = `
-        <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[340px] shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
-            <div class="bg-darkBg/95 rounded-[14px] p-6 flex flex-col relative items-center text-xs overflow-hidden">
+        <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[360px] shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="bg-darkBg/95 rounded-[14px] p-6 flex flex-col relative items-center text-xs overflow-hidden max-h-[85vh] overflow-y-auto">
                 <div class="absolute top-0 left-0 w-full h-24 bg-brandRed/10 blur-2xl"></div>
                 <button onclick="window.closeTransactionModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg z-50"><i class="ph ph-x"></i></button>
                 
@@ -141,11 +241,16 @@ window.openMemberProfile = function(memberId) {
                     </div>
 
                     <div class="flex justify-between border-b border-gray-800/50 pb-1"><span class="text-gray-500 font-bold uppercase text-[9px]">Expiry</span><span class="text-white font-mono">${member.expiryDate}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500 font-bold uppercase text-[9px]">Due Balance</span><span class="${dueAmount > 0 ? 'text-amber-400' : 'text-green-400'} font-bold font-mono">₹${dueAmount}</span></div>
+                    <div class="flex justify-between border-b border-gray-800/50 pb-1"><span class="text-gray-500 font-bold uppercase text-[9px]">Due Balance</span><span class="${dueAmount > 0 ? 'text-amber-400' : 'text-green-400'} font-bold font-mono">₹${dueAmount}</span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-500 font-bold uppercase text-[9px]">Billing Status</span><span class="${billingStatusColor}">${billingStatusBadge}</span></div>
                 </div>
 
-                <div class="mt-6 p-2 bg-white rounded-xl shadow-lg z-10"><img src="${qrUrl}" class="w-32 h-32 rounded-lg" alt="QR"></div>
+                <div class="mt-4 p-2 bg-white rounded-xl shadow-lg z-10"><img src="${qrUrl}" class="w-32 h-32 rounded-lg" alt="QR"></div>
                 <p class="text-[8px] text-gray-500 mt-2 uppercase tracking-[0.2em]">Universal Data Access QR</p>
+
+                <button onclick="window.simulateEntranceScan('${member.id}')" class="w-full mt-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold text-[11px] py-2.5 rounded-lg uppercase tracking-wider shadow-md z-10">
+                    <i class="ph ph-scan mr-2"></i>Simulate Entrance Scan
+                </button>
             </div>
         </div>
     `;
@@ -229,6 +334,29 @@ window.collectMemberDue = function(memberName, amount) {
     if (member) member.portalLocked = false;
     alert(`Success: Collected ₹${amount}. Portal unlocked.`);
     renderMembersPage();
+};
+
+window.simulateEntranceScan = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return;
+
+    // যদি মেম্বার এখনো পেমেন্ট করেনি
+    if (!member.paymentDate) {
+        // সিমুলেট করে পেমেন্ট রেকর্ড করা
+        member.paymentDate = new Date().toISOString().slice(0, 10);
+        member.autoLapseDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        member.billingStatus = "pending";
+    }
+
+    // এখন স্ক্যান রেকর্ড করা
+    const result = window.recordFirstEntranceScan(memberId);
+    
+    window.closeTransactionModal();
+    renderMembersPage();
+    
+    setTimeout(() => {
+        alert(result.message);
+    }, 300);
 };
 
 window.handleMemberSearch = function() { const input = document.getElementById('member-search'); if (input) { memberSearchQuery = input.value; renderMembersGrid(); } };
