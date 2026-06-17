@@ -107,10 +107,17 @@ function navigateTo(viewId) {
         mainContent.innerHTML = getCRMView();     // crm.js থেকে এইচটিএমএল স্ট্রাকচার আনা
         renderCRMPage();                         // সিআরএম এর মেট্রিক্স, ওমনি মোডাল ও টেবিল সচল করা
     }
+
     // --- ই-কমার্স ইনভেন্টরি ও রিটেল মডিউল ---
     else if (viewId === 'inventory') {
         mainContent.innerHTML = getInventoryView(); // inventory.js থেকে লেআউট নিয়ে আসবে
-        renderInventoryPage();                     // ই-কমার্স গ্রিড ও ফিল্টার লোড করবে
+        renderInventoryPage();  
+    }
+    //reports download
+    else if (viewId === 'reports') {
+        mainContent.innerHTML = getReportsView(); // reports.js theke layout niye asbe
+        renderReportsPage();                      // 10-types of graphs and micro reports load korbe
+     }                   // ই-কমার্স গ্রিড ও ফিল্টার লোড করবে
     }
     //
     // --- ফিউচার মডিউল ব্যাকআপ (অন্যান্য মডিউল যা এখনও তৈরি হয়নি) ---
