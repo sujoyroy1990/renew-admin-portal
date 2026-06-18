@@ -55,7 +55,14 @@ function navigateTo(viewId) {
     else if (viewId === 'reports') { 
         mainContent.innerHTML = getReportsView(); 
         renderReportsPage(); 
-    } 
+    } // app.js
+    else if (viewId === 'registration') { 
+    mainContent.innerHTML = getMemberRegistrationView();
+    // রেজিস্ট্রেশন ফর্ম লোড হওয়ার সাথে সাথে একবার প্রিভিউ আপডেট করে দেওয়া
+    if (typeof window.updateFeePreview === 'function') {
+        window.updateFeePreview();
+    }
+}
     else if (viewId === 'fighter-portal') { 
         mainContent.innerHTML = getFighterPortalView(); 
     }

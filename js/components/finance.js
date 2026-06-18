@@ -789,3 +789,8 @@ window.submitTransaction = function() {
     alert(`Authorized successfully! Entry saved.`);
     window.closeTransactionModal(); renderFinancePage(); 
 };
+window.updateAdmissionFee = function(newFee) {
+    window.GYM_FEES.admissionFee = parseFloat(newFee);
+    alert("Admission fee updated to ₹" + newFee + " system-wide!");
+    // যদি রেজিস্ট্রেশন পেজে ফি পরিবর্তন দেখতে চান, তবে এটি নিশ্চিত করুন যে রেজিস্ট্রেশন পেজটি নতুন করে রেন্ডার হচ্ছে
+};
