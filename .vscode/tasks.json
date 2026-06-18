@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Preview site",
+      "type": "shell",
+      "command": "python3 -m http.server 8000",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Serving HTTP.*",
+          "endsPattern": "^Keyboard interrupt.*"
+        }
+      }
+    },
+    {
+      "label": "Watch & Auto-Restart Preview",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "while true; do python3 -m http.server 8000 & sleep 2; inotifywait -r -e modify js/ css/ index.html; pkill -f 'http.server 8000'; done"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

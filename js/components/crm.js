@@ -399,7 +399,63 @@ window.submitNewLead = function() {
 };
 
 window.closeTransactionModal = function() {
-    const modal = document.getElementById('transaction-modal'); if (!modal) return;
-    modal.classList.add('opacity-0'); if (modal.firstElementChild) { modal.firstElementChild.classList.remove('scale-100'); modal.firstElementChild.classList.add('scale-95'); }
+    const modal = document.getElementById('transaction-modal'); 
+    if (!modal) return;
+    modal.classList.add('opacity-0'); 
+    if (modal.firstElementChild) { 
+        modal.firstElementChild.classList.remove('scale-100'); 
+        modal.firstElementChild.classList.add('scale-95'); 
+    }
     setTimeout(() => { modal.classList.add('hidden'); }, 200);
+}; // এখানে ব্র্যাকেটটি ক্লোজ হবে (আগের কোডে এটা মিসিং ছিল)
+
+// CRM এবং Finance এর মধ্যে রিয়েল-টাইম সিঙ্ক
+window.changeLeadStatus = function(leadId, newStatus) {
+    const lead = window.MOCK_LEADS.find(l => l.id === leadId);
+    if (!lead) return;
+
+    lead.status = newStatus;
+
+    // কনভার্সন লজিক
+    if (newStatus === 'converted') {
+        let advanceAmount = window.GYM_FEES ? window.GYM_FEES["advance fee"] : 5000;
+        let discountApplied = 0;
+        let rewardMessage = "";
+
+        // রেফারেল থাকলে রিওয়ার্ড ক্যালকুলেশন
+        if (lead.referredBy && window.REFERRAL_OFFER && window.REFERRAL_OFFER.isActive) {
+            discountApplied = window.REFERRAL_OFFER.refereeDiscount;
+            advanceAmount -= discountApplied; 
+            rewardMessage = `\n\n🎁 REFERRAL APPLIED: ${lead.name} got ₹${discountApplied} discount.`;
+
+            // রেফারারের ওয়ালেট ক্রেডিট এন্ট্রি
+            if (window.MOCK_TRANSACTIONS) {
+                window.MOCK_TRANSACTIONS.unshift({
+                    id: `TXN-${Date.now().toString().slice(-4)}`,
+                    type: "expense", category: "marketing",
+                    amount: window.REFERRAL_OFFER.referrerReward,
+                    date: new Date().toISOString().slice(0,10),
+                    status: "paid", mode: "Wallet",
+                    description: `Referral Reward Credit - ${lead.referrerName}`,
+                    trainerId: ""
+                });
+            }
+        }
+
+        // ফিন্যান্স খাতায় অ্যাডভান্স ইনভয়েস জেনারেট
+        if (window.MOCK_TRANSACTIONS) {
+            window.MOCK_TRANSACTIONS.unshift({
+                id: `TXN-${Date.now().toString().slice(-4)}`,
+                type: "income", category: "advance fee",
+                amount: advanceAmount,
+                date: new Date().toISOString().slice(0,10),
+                status: "pending", mode: "UPI",
+                description: `Advance Fee (Fighter Gated) - ${lead.name}`,
+                trainerId: "", portalLocked: true
+            });
+        }
+        alert(`🎉 কনভার্সন সাকসেসফুল! ${lead.name}-এর জন্য অ্যাডভান্স ইনভয়েস জেনারেট হয়েছে।${rewardMessage}`);
+    }
+    
+    renderCRMPage();
 };

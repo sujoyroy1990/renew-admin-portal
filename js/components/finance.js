@@ -10,8 +10,20 @@ let selectedFormType = 'income';
 
 const ADMIN_SECURE_PASSWORD = "admin123";
 
+const savedPlans = localStorage.getItem('GYM_PLANS_DB');
+if (savedPlans) {
+    window.GYM_PLANS = JSON.parse(savedPlans);
+} else if (!window.GYM_PLANS) {
+    window.GYM_PLANS = [
+        { id: "PLN-1", name: "Monthly Regular Track", fee: 1500, duration: 30 },
+        { id: "PLN-2", name: "Fighter Half - Quarterly Track", fee: 2500, duration: 90 }, // ৩ মাসের প্যাকেজ (৯০ দিন)
+        { id: "PLN-3", name: "Fighter Quarterly Track", fee: 7000, duration: 180 },
+        { id: "PLN-4", name: "Elite Annual Pack", fee: 15000, duration: 365 } // বার্ষিক প্যাকেজ
+    ];
+}
+
 if (!window.GYM_FEES) {
-    window.GYM_FEES = { "advance fee": 5000, "membership fee": 2500, "PT": 15000, "diet plan": 2000, "supplement": 3500, "Events booking": 4500, "other": 1000 };
+    window.GYM_FEES = { "admission fee": 1000, "membership fee": 2500, "PT": 15000, "diet plan": 2000, "supplement": 3500, "Events booking": 4500, "other": 1000 };
 }
 
 if (!window.MOCK_TRANSACTIONS) {
@@ -37,6 +49,9 @@ function getFinanceView() {
                     <p class="text-xs text-gray-500">Manage security clearances, core configurations & active cash ledger flow.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
+                    <button onclick="window.openPlanManagerModal()" class="border border-indigo-500/30 hover:border-indigo-500 bg-indigo-950/20 hover:bg-indigo-900 text-indigo-300 text-xs font-bold px-3 py-2.5 rounded-lg transition-all flex items-center space-x-1.5 shadow">
+                        <i class="ph ph-list-numbers"></i><span>Plan Config</span>
+                    </button>
                     <button onclick="window.openFeesConfigModal()" class="border border-purple-500/30 hover:border-purple-500 bg-purple-950/20 hover:bg-purple-900 text-purple-300 text-xs font-bold px-3 py-2.5 rounded-lg transition-all flex items-center space-x-1.5 shadow">
                         <i class="ph ph-sliders"></i><span>Manage Base Fees</span>
                     </button>
@@ -111,7 +126,7 @@ function renderFinanceMetrics() {
     const totalInflow = txns.filter(t => t.type === 'income' && t.status === 'paid').reduce((sum, t) => sum + t.amount, 0);
     const totalOutflow = txns.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     const netCashBalance = totalInflow - totalOutflow;
-    const pendingDues = txns.filter(t => t.type === 'income' && t.status === 'pending').reduce((sum, t) => sum + t.amount, 0);
+    const pendingDues = txns.filter(t => t.type === 'income' && (t.status === 'pending' || t.status === 'pending_verification')).reduce((sum, t) => sum + t.amount, 0);
     const overdueBadDebt = txns.filter(t => t.type === 'income' && t.status === 'overdue').reduce((sum, t) => sum + t.amount, 0);
 
     container.innerHTML = `
@@ -229,6 +244,7 @@ function renderTrainerTargets() {
     if (!container) return;
 
     if (!window.TRAINER_TARGETS) { window.TRAINER_TARGETS = { "t1": 30000, "t2": 20000 }; }
+    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1", name: "Rajat Sharma"}, {id: "t2", name: "Vikram Singh"} ];
 
     container.innerHTML = `
         <div class="flex justify-between items-center border-b border-gray-800/60 pb-2 mb-3">
@@ -240,7 +256,7 @@ function renderTrainerTargets() {
             </button>
         </div>
         <div class="space-y-4 py-1 flex-1 flex flex-col justify-center">
-            ${MOCK_TRAINERS.map(t => {
+            ${trainersList.map(t => {
                 const target = window.TRAINER_TARGETS[t.id] || 0;
                 const sales = calculateTrainerSales(t.id);
                 const pct = target > 0 ? Math.min(Math.round((sales.totalRevenue / target) * 100), 100) : 0;
@@ -261,11 +277,13 @@ function renderTrainerTargets() {
     `;
 }
 
+// RESTORED + UPDATED FEATURE: 'pending_verification' কেও এই প্যানেলে ধরা হলো
 function renderPendingDuesPanel() {
     const container = document.getElementById('pending-dues-reminder-box');
     if (!container) return;
 
-    const pendingDuesList = window.MOCK_TRANSACTIONS.filter(t => t.type === 'income' && t.status === 'pending');
+    // লজিক আপডেট: 'pending' অথবা 'pending_verification' দুই ধরণের ডেটাই ফিল্টার হবে
+    const pendingDuesList = window.MOCK_TRANSACTIONS.filter(t => t.type === 'income' && (t.status === 'pending' || t.status === 'pending_verification'));
 
     if (pendingDuesList.length === 0) {
         container.innerHTML = `
@@ -285,17 +303,28 @@ function renderPendingDuesPanel() {
                 const memberName = txn.description.includes('-') ? txn.description.split('-')[1].trim() : txn.description;
                 const purpose = txn.description.includes('-') ? txn.description.split('-')[0].trim() : txn.category;
                 const isGated = txn.category.toLowerCase() === 'advance fee' || txn.portalLocked === true;
+                const isWaitingApproval = txn.status === 'pending_verification';
                 
-                const statusBadge = isGated 
-                    ? `<span class="text-[9px] font-bold uppercase text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 flex items-center"><i class="ph ph-lock inline mr-1 animate-pulse"></i>Portal Locked</span>`
-                    : `<span class="text-[9px] font-bold uppercase text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Pending Due</span>`;
+                // ডাইনামিক স্ট্যাটাস ব্যাজ মেকানিজম
+                let statusBadge = `<span class="text-[9px] font-bold uppercase text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Pending Due</span>`;
+                if (isGated) {
+                    statusBadge = `<span class="text-[9px] font-bold uppercase text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 flex items-center"><i class="ph ph-lock inline mr-1 animate-pulse"></i>Portal Locked</span>`;
+                } else if (isWaitingApproval) {
+                    statusBadge = `<span class="text-[9px] font-bold uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20 flex items-center animate-pulse"><i class="ph ph-hourglass inline mr-1"></i>Awaiting Approval</span>`;
+                }
 
-                const actionButton = isGated
-                    ? `<button onclick="window.collectAdvanceAndUnlock('${txn.id}')" class="w-full bg-green-500 text-black hover:bg-green-600 text-[11px] font-extrabold py-1.5 rounded-lg transition-all flex items-center justify-center space-x-1 shadow-md"><i class="ph ph-lock-key-open text-sm"></i><span>Collect & Unlock Fighter Portal</span></button>`
-                    : `<button onclick="window.sendDueReminder('${txn.id}')" id="btn-remind-${txn.id}" class="w-full bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-white border border-amber-500/20 text-[11px] font-bold py-1.5 rounded-lg transition-all flex items-center justify-center space-x-1"><i class="ph ph-paper-plane-tilt"></i><span>Send Gateway Reminder</span></button>`;
+                // ডাইনামিক অ্যাকশন বাটন মেকানিজম
+                let actionButton = '';
+                if (isWaitingApproval) {
+                    actionButton = `<button onclick="window.approveFighterPayment('${txn.id}')" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-extrabold py-1.5 rounded-lg transition-all flex items-center justify-center space-x-1 shadow-md uppercase tracking-wider"><i class="ph ph-check-circle text-sm"></i><span>Approve & Open Portal</span></button>`;
+                } else if (isGated) {
+                    actionButton = `<button onclick="window.collectAdvanceAndUnlock('${txn.id}')" class="w-full bg-green-500 text-black hover:bg-green-600 text-[11px] font-extrabold py-1.5 rounded-lg transition-all flex items-center justify-center space-x-1 shadow-md"><i class="ph ph-lock-key-open text-sm"></i><span>Collect & Unlock Fighter Portal</span></button>`;
+                } else {
+                    actionButton = `<button onclick="window.sendDueReminder('${txn.id}')" id="btn-remind-${txn.id}" class="w-full bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-white border border-amber-500/20 text-[11px] font-bold py-1.5 rounded-lg transition-all flex items-center justify-center space-x-1"><i class="ph ph-paper-plane-tilt"></i><span>Send Gateway Reminder</span></button>`;
+                }
 
                 return `
-                    <div class="bg-black/20 border ${isGated ? 'border-red-900/40 bg-red-950/5' : 'border-gray-800/80'} p-3.5 rounded-xl flex flex-col justify-between space-y-3 hover:border-gray-700 transition-colors">
+                    <div class="bg-black/20 border ${isWaitingApproval ? 'border-purple-900/40 bg-purple-950/5' : isGated ? 'border-red-900/40 bg-red-950/5' : 'border-gray-800/80'} p-3.5 rounded-xl flex flex-col justify-between space-y-3 hover:border-gray-700 transition-colors">
                         <div class="flex justify-between items-start">
                             <div>
                                 <h5 class="text-white font-semibold text-sm">${memberName}</h5>
@@ -380,8 +409,13 @@ function renderTransactionTable() {
                 <td class="py-3.5 px-6"><span class="bg-gray-800 text-gray-400 font-mono text-[10px] px-2 py-0.5 rounded uppercase">${t.category}</span></td>
                 <td class="py-3.5 px-6 font-mono text-[11px] text-gray-400">${t.mode}</td>
                 <td class="py-3.5 px-6 font-mono text-gray-500">${t.date}</td>
-                <td class="py-3.5 px-6 text-right font-mono ${isIncome ? 'text-green-400' : 'text-brandRed'}" font-semibold">${isIncome ? '+' : '-'} ₹${t.amount.toLocaleString()}</td>
-                <td class="py-3.5 px-6 text-center"><button onclick="window.deleteTransaction('${t.id}')" class="text-gray-500 hover:text-brandRed p-1"><i class="ph ph-trash text-base"></i></button></td>
+                <td class="py-3.5 px-6 text-right font-mono ${isIncome ? 'text-green-400' : 'text-brandRed'}">${isIncome ? '+' : '-'} ₹${t.amount.toLocaleString()}</td>
+                <td class="py-3.5 px-6 text-center">
+                    <div class="flex items-center justify-center space-x-2">
+                        ${t.status === 'pending_verification' ? `<button onclick="window.approveFighterPayment('${t.id}')" title="Approve Entry" class="text-purple-400 hover:text-green-400 p-1 transition-transform hover:scale-110"><i class="ph ph-check-square-offset text-base"></i></button>` : ''}
+                        <button onclick="window.deleteTransaction('${t.id}')" class="text-gray-500 hover:text-brandRed p-1"><i class="ph ph-trash text-base"></i></button>
+                    </div>
+                </td>
             </tr>
         `;
     }).join('');
@@ -391,7 +425,34 @@ function renderTransactionTable() {
 // গ্লোবাল অ্যাক্টিভেশন লজিক্স (WINDOW OMNI BINDING WITH DYNAMIC EVENT LINK)
 // =========================================================================
 
-// নতুন লজিক ৩: ইনকামে ইভেন্ট সিলেক্ট করলে ইউনিক নম্বর চাওয়ার ডাইনামিক হ্যান্ডলার
+// NEW LOGIC ENGINE: এডমিন যেকোনো ওয়ান-ক্লিক পেমেন্ট এপ্রুভ করার মাস্টার রুল
+window.approveFighterPayment = function(txnId) {
+    const txn = window.MOCK_TRANSACTIONS.find(t => t.id === txnId);
+    if (!txn) return;
+
+    // ১. খাতার এন্ট্রি পেইড করে লক রিলিজ করা হলো
+    txn.status = 'paid';
+    txn.portalLocked = false;
+
+    // ২. মেম্বার ডাটাবেসের সাথে রিয়েল-টাইম ক্রস-লিঙ্ক রি-সিঙ্ক করা
+    const memberName = txn.description.includes('-') ? txn.description.split('-')[1].trim() : txn.description;
+    
+    if (typeof window.MOCK_MEMBERS !== 'undefined') {
+        const member = window.MOCK_MEMBERS.find(m => m.name.toLowerCase() === memberName.toLowerCase() || txn.description.toLowerCase().includes(m.name.toLowerCase()));
+        if (member) {
+            member.portalLocked = false;
+            // যদি এটি নবাগত মেম্বার হয়, তবে তার সাইকেল ফার্স্ট স্ক্যানের জন্য রেডি করে দেওয়া হবে
+            if (!member.expiryDate || member.expiryDate.includes("Pending") || member.expiryDate.includes("Lapsed")) {
+                member.expiryDate = "Pending First Scan";
+                member.status = "inactive";
+            }
+        }
+    }
+
+    alert(`⚡ ADMISSION RELEASE COMPLETE:\n\nPayment verified for "${memberName}".\nLedger balance marked as PAID.\nFighter portal access has been globally UNLOCKED!`);
+    renderFinancePage();
+};
+
 window.handleCategoryChange = function(val) {
     const wrapper = document.getElementById('form-event-code-wrapper');
     const amountInput = document.getElementById('form-amount');
@@ -404,13 +465,11 @@ window.handleCategoryChange = function(val) {
         wrapper.classList.add('hidden');
         document.getElementById('form-event-no').value = '';
         document.getElementById('event-match-status').textContent = '';
-        // অন্য ক্যাটাগরিতে ফিরলে বেস ফি সেট করা
         amountInput.value = window.GYM_FEES[val] || '';
         amountInput.placeholder = "Leave empty to use base tariff";
     }
 };
 
-// নতুন লজিক ৪: ইভেন্ট কোড টাইপ করলে রিয়েল-টাইম ম্যাচ করানোর ইঞ্জিন
 window.handleEventNoInput = function(val) {
     const events = window.GYM_EVENTS || [];
     const matched = events.find(e => e.eventNo.trim().toUpperCase() === val.trim().toUpperCase());
@@ -418,7 +477,7 @@ window.handleEventNoInput = function(val) {
     const amountInput = document.getElementById('form-amount');
 
     if (matched) {
-        amountInput.value = matched.amount; // অটো-ফিল অ্যামাউন্ট
+        amountInput.value = matched.amount; 
         if (status) {
             status.className = "text-[10px] text-green-400 mt-1 font-mono font-medium block";
             status.textContent = `✓ Active Event: ${matched.title} (Price: ₹${matched.amount})`;
@@ -465,6 +524,90 @@ window.submitFeesConfig = function() {
         if (input) window.GYM_FEES[key] = parseFloat(input.value) || 0;
     });
     alert("Rates updated."); window.closeTransactionModal(); renderFinancePage();
+};
+
+window.openPlanManagerModal = function() {
+    const modal = document.getElementById('transaction-modal');
+    if (!modal) return;
+
+    let plansHtml = window.GYM_PLANS.map((p, index) => `
+        <div class="flex items-center justify-between bg-black/60 border border-gray-800/80 p-3 rounded-xl mb-2.5 group hover:border-indigo-500/40 transition-colors gap-2">
+            <input type="text" id="plan-name-${index}" value="${p.name}" class="bg-transparent text-gray-200 text-xs font-bold w-2/5 focus:outline-none border-b border-transparent focus:border-indigo-500 py-0.5" title="Plan Name">
+            
+            <div class="flex space-x-2 w-3/5 justify-end">
+                <div class="flex items-center space-x-1 bg-black/40 px-2 py-1 rounded-lg border border-gray-800" title="Validity in Days">
+                    <i class="ph ph-clock text-blue-400"></i>
+                    <input type="number" id="plan-duration-${index}" value="${p.duration || 30}" class="bg-transparent text-blue-400 text-[11px] font-mono font-bold w-10 text-right focus:outline-none">
+                    <span class="text-[9px] text-gray-500">d</span>
+                </div>
+                
+                <div class="flex items-center space-x-1 bg-black/40 px-2 py-1 rounded-lg border border-gray-800" title="Plan Fee">
+                    <span class="text-indigo-400 font-mono font-bold text-xs">₹</span>
+                    <input type="number" id="plan-fee-${index}" value="${p.fee}" class="bg-transparent text-green-400 text-xs font-mono font-bold w-14 text-right focus:outline-none">
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    modal.innerHTML = `
+        <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[450px] shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="bg-darkBg/95 rounded-[14px] p-6 flex flex-col relative text-xs">
+                <button onclick="window.closeTransactionModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg z-50"><i class="ph ph-x"></i></button>
+                <div class="flex items-center space-x-2 border-b border-gray-800 pb-3 mb-4">
+                    <i class="ph ph-list-numbers text-xl text-indigo-400"></i>
+                    <h3 class="font-bold text-white text-sm tracking-wide uppercase">Gym Plans & Duration Config</h3>
+                </div>
+                
+                <div class="max-h-[220px] overflow-y-auto pr-1 custom-scrollbar" id="plan-list-container">${plansHtml}</div>
+                
+                <div class="border-t border-gray-800 mt-4 pt-4 space-y-2.5 text-left">
+                    <h4 class="text-[10px] text-indigo-400 uppercase tracking-widest font-black">Deploy New Track</h4>
+                    <div class="flex space-x-2">
+                        <input type="text" id="new-plan-name" placeholder="Plan Title" class="flex-1 bg-black/50 border border-gray-800 rounded-xl px-3 py-2 text-gray-300 focus:outline-none focus:border-indigo-500 text-xs">
+                        <input type="number" id="new-plan-duration" placeholder="Days" title="Validity in Days" class="w-16 bg-black/50 border border-gray-800 rounded-xl px-2 py-2 text-blue-400 font-mono text-center focus:outline-none focus:border-blue-500 text-xs">
+                        <input type="number" id="new-plan-fee" placeholder="Fee (₹)" class="w-20 bg-black/50 border border-gray-800 rounded-xl px-2 py-2 text-green-400 font-mono text-center focus:outline-none focus:border-green-500 text-xs">
+                    </div>
+                </div>
+
+                <button onclick="window.savePlanConfig()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold py-2.5 rounded-xl mt-6 uppercase tracking-wider shadow-lg shadow-indigo-950/50">Save & Sync Master Data</button>
+            </div>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    setTimeout(() => { modal.classList.remove('opacity-0'); modal.firstElementChild.classList.add('scale-100'); }, 10);
+    modal.onclick = window.closeTransactionModal;
+};
+
+window.savePlanConfig = function() {
+    window.GYM_PLANS.forEach((p, index) => {
+        p.name = document.getElementById(`plan-name-${index}`).value;
+        p.fee = parseFloat(document.getElementById(`plan-fee-${index}`).value);
+        
+        // ডিউরেশন ফিক্স 
+        const durInput = document.getElementById(`plan-duration-${index}`).value;
+        p.duration = durInput ? parseInt(durInput) : 30;
+    });
+
+    const newName = document.getElementById('new-plan-name').value.trim();
+    const newDurationStr = document.getElementById('new-plan-duration').value;
+    const newDuration = newDurationStr ? parseInt(newDurationStr) : 30; // কেউ খালি রাখলে ডিফল্ট ৩০ দিন নেবে
+    const newFee = parseFloat(document.getElementById('new-plan-fee').value);
+
+    if (newName && !isNaN(newFee)) {
+        window.GYM_PLANS.push({ 
+            id: `PLN-${window.GYM_PLANS.length + 1}`, 
+            name: newName, 
+            fee: newFee,
+            duration: newDuration
+        });
+    }
+
+    // NEW LOGIC: ব্রাউজারের লোকাল স্টোরেজে পারমানেন্টলি সেভ করা হচ্ছে
+    localStorage.setItem('GYM_PLANS_DB', JSON.stringify(window.GYM_PLANS));
+
+    alert("⚡ MASTER ERP SYNC COMPLETE:\nAll gym subscription plans, validity durations, and fee modifications are now PERMANENTLY SAVED.");
+    window.closeTransactionModal();
+    renderFinancePage();
 };
 
 window.simulateFighterRegistration = function() {
@@ -524,25 +667,28 @@ window.closeTransactionModal = function() {
     setTimeout(() => { modal.classList.add('hidden'); }, 200);
 };
 
-window.closeTransactionModal = function() {
-    const modal = document.getElementById('transaction-modal'); if (!modal) return;
-    modal.classList.add('opacity-0'); if (modal.firstElementChild) { modal.firstElementChild.classList.remove('scale-100'); modal.firstElementChild.classList.add('scale-95'); }
-    setTimeout(() => { modal.classList.add('hidden'); }, 200);
-};
-
 window.openTargetModal = function() {
     const modal = document.getElementById('transaction-modal'); if (!modal) return;
-    const inputsHtml = MOCK_TRAINERS.map(t => { const currentTarget = window.TRAINER_TARGETS ? window.TRAINER_TARGETS[t.id] || 0 : 0; return `<div><label class="text-gray-400 text-[11px] font-semibold block mb-1 uppercase">${t.name}</label><div class="relative"><span class="absolute left-3 top-2 text-gray-600">₹</span><input type="number" id="target-input-${t.id}" value="${currentTarget}" class="w-full bg-black/50 border border-gray-800 rounded-lg pl-7 pr-3 py-2 text-xs text-gray-300 font-mono"></div></div>`; }).join('');
+    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1", name: "Rajat Sharma"}, {id: "t2", name: "Vikram Singh"} ];
+    const inputsHtml = trainersList.map(t => { const currentTarget = window.TRAINER_TARGETS ? window.TRAINER_TARGETS[t.id] || 0 : 0; return `<div><label class="text-gray-400 text-[11px] font-semibold block mb-1 uppercase">${t.name}</label><div class="relative"><span class="absolute left-3 top-2 text-gray-600">₹</span><input type="number" id="target-input-${t.id}" value="${currentTarget}" class="w-full bg-black/50 border border-gray-800 rounded-lg pl-7 pr-3 py-2 text-xs text-gray-300 font-mono"></div></div>`; }).join('');
     modal.innerHTML = `<div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-80 shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()"><div class="bg-darkBg/95 rounded-[14px] p-5 flex flex-col relative text-xs"><button onclick="window.closeTransactionModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg z-50"><i class="ph ph-x"></i></button><div class="flex items-center space-x-2 border-b border-gray-800 pb-3 mb-4"><i class="ph ph-target text-xl text-purple-400"></i><h3 class="font-bold text-white text-sm">Set Monthly Revenue Goals</h3></div><div class="space-y-4 text-left">${inputsHtml}</div><button onclick="window.submitTrainerTargets()" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2.5 rounded-lg mt-5 shadow">Update Roster Targets</button></div></div>`;
     modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); modal.firstElementChild.classList.add('scale-100'); }, 10); modal.onclick = window.closeTransactionModal;
 };
 
-window.submitTrainerTargets = function() { MOCK_TRAINERS.forEach(t => { const input = document.getElementById(`target-input-${t.id}`); if (input) { window.TRAINER_TARGETS[t.id] = parseFloat(input.value) || 0; } }); alert("Targets updated."); window.closeTransactionModal(); renderFinancePage(); };
+window.submitTrainerTargets = function() { 
+    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1"}, {id: "t2"} ];
+    trainersList.forEach(t => { 
+        const input = document.getElementById(`target-input-${t.id}`); 
+        if (input) { window.TRAINER_TARGETS[t.id] = parseFloat(input.value) || 0; } 
+    }); 
+    alert("Targets updated."); window.closeTransactionModal(); renderFinancePage(); 
+};
 
 window.openTransactionModal = function() {
     const modal = document.getElementById('transaction-modal');
     if (!modal) return;
-    const trainerOptions = MOCK_TRAINERS.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1", name: "Rajat Sharma"}, {id: "t2", name: "Vikram Singh"} ];
+    const trainerOptions = trainersList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
     modal.innerHTML = `
         <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[380px] shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
@@ -606,7 +752,7 @@ window.toggleFormType = function(type) {
     } else {
         btnInc.className = "py-1.5 font-bold rounded-md text-gray-400 hover:text-white"; btnExp.className = "py-1.5 font-bold rounded-md bg-brandRed text-white shadow";
         catInc.classList.add('hidden'); catExp.classList.remove('hidden'); trainerWrapper.classList.add('hidden');
-        if (eventWrapper) eventWrapper.classList.add('hidden'); // এক্সপেন্সে ইভেন্ট কোড লাগবে না
+        if (eventWrapper) eventWrapper.classList.add('hidden'); 
     }
 };
 
@@ -628,9 +774,7 @@ window.submitTransaction = function() {
         }
     }
 
-    // যদি ইভেন্ট বুকিং হয়, তবে ডিসক্রিপশনে ইভেন্ট নম্বরটি পুশ করে দেওয়া
     const finalDesc = (category === 'Events booking' && eventNo) ? `${desc} [${eventNo}]` : desc;
-
     const today = new Date();
     const formattedDate = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 

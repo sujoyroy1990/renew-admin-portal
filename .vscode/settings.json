@@ -1,0 +1,5 @@
+{
+  "task.autoRunTasks": "on",
+  "files.autoSave": "onFocusChange",
+  "editor.autoSave": "on"
+}
