@@ -16,27 +16,29 @@ if (savedPlans) {
 } else if (!window.GYM_PLANS) {
     window.GYM_PLANS = [
         { id: "PLN-1", name: "Monthly Regular Track", fee: 1500, duration: 30 },
-        { id: "PLN-2", name: "Fighter Half - Quarterly Track", fee: 2500, duration: 90 }, // ৩ মাসের প্যাকেজ (৯০ দিন)
+        { id: "PLN-2", name: "Fighter Half - Quarterly Track", fee: 2500, duration: 90 },
         { id: "PLN-3", name: "Fighter Quarterly Track", fee: 7000, duration: 180 },
-        { id: "PLN-4", name: "Elite Annual Pack", fee: 15000, duration: 365 } // বার্ষিক প্যাকেজ
+        { id: "PLN-4", name: "Elite Annual Pack", fee: 15000, duration: 365 }
     ];
 }
 
+// আপডেট: এখানেই Admission Fee মেইনটেইন করা হচ্ছে
 if (!window.GYM_FEES) {
-    window.GYM_FEES = { "advance fee": 1000, "membership fee": 2500, "PT": 15000, "diet plan": 2000, "supplement": 3500, "Events booking": 4500, "other": 1000 };
+    window.GYM_FEES = { 
+        "admissionFee": 1000, // এটিই গ্লোবাল ভ্যালু
+        "membership fee": 2500, 
+        "PT": 15000, 
+        "diet plan": 2000, 
+        "supplement": 3500, 
+        "Events booking": 4500, 
+        "other": 1000 
+    };
 }
 
 if (!window.MOCK_TRANSACTIONS) {
     window.MOCK_TRANSACTIONS = [
         { id: "TXN-001", type: "income", category: "PT", amount: 15000, date: "2026-06-01", status: "paid", mode: "UPI", description: "PT Combo - Sourav Ganguly", trainerId: "t1" },
-        { id: "TXN-002", type: "income", category: "diet plan", amount: 2000, date: "2026-06-02", status: "paid", mode: "Cash", description: "Keto Diet Chart - Sourav", trainerId: "t1" },
-        { id: "TXN-003", type: "expense", category: "rent", amount: 25000, date: "2026-06-05", status: "paid", mode: "Bank", description: "Main Floor Gym Rent" },
-        { id: "TXN-004", type: "income", category: "supplement", amount: 3500, date: "2026-06-10", status: "paid", mode: "Card", description: "Isolate Whey Protein - Anirban", trainerId: "t2" },
-        { id: "TXN-005", type: "expense", category: "salaries", amount: 15000, date: "2026-06-11", status: "paid", mode: "UPI", description: "Trainer Basic Salary - Rahul" },
-        { id: "TXN-006", type: "income", category: "membership fee", amount: 2500, date: "2026-06-12", status: "pending", mode: "UPI", description: "Monthly Renew - Subham Das", trainerId: "" },
-        { id: "TXN-007", type: "expense", category: "marketing", amount: 5000, date: "2026-06-13", status: "paid", mode: "UPI", description: "Facebook Local Hyper-Targeted Ads" },
-        { id: "TXN-008", type: "income", category: "Events booking", amount: 1500, date: "2026-06-14", status: "paid", mode: "UPI", description: "MMA Workshop Booking [EVT-101]", trainerId: "t1" },
-        { id: "TXN-009", type: "income", category: "advance fee", amount: 5000, date: "2026-06-15", status: "pending", mode: "UPI", description: "Advance Fee (Fighter Gated) - Joydeep Pal", trainerId: "", portalLocked: true }
+        { id: "TXN-009", type: "income", category: "admission", amount: 1000, date: "2026-06-15", status: "pending", mode: "UPI", description: "Admission Fee - Joydeep Pal", trainerId: "", portalLocked: true }
     ];
 }
 
@@ -429,27 +431,21 @@ function renderTransactionTable() {
 window.approveFighterPayment = function(txnId) {
     const txn = window.MOCK_TRANSACTIONS.find(t => t.id === txnId);
     if (!txn) return;
-
-    // ১. খাতার এন্ট্রি পেইড করে লক রিলিজ করা হলো
     txn.status = 'paid';
     txn.portalLocked = false;
-
-    // ২. মেম্বার ডাটাবেসের সাথে রিয়েল-টাইম ক্রস-লিঙ্ক রি-সিঙ্ক করা
     const memberName = txn.description.includes('-') ? txn.description.split('-')[1].trim() : txn.description;
     
     if (typeof window.MOCK_MEMBERS !== 'undefined') {
-        const member = window.MOCK_MEMBERS.find(m => m.name.toLowerCase() === memberName.toLowerCase() || txn.description.toLowerCase().includes(m.name.toLowerCase()));
+        const member = window.MOCK_MEMBERS.find(m => m.name.toLowerCase() === memberName.toLowerCase());
         if (member) {
             member.portalLocked = false;
-            // যদি এটি নবাগত মেম্বার হয়, তবে তার সাইকেল ফার্স্ট স্ক্যানের জন্য রেডি করে দেওয়া হবে
-            if (!member.expiryDate || member.expiryDate.includes("Pending") || member.expiryDate.includes("Lapsed")) {
+            if (!member.expiryDate || member.expiryDate.includes("Pending")) {
                 member.expiryDate = "Pending First Scan";
                 member.status = "inactive";
             }
         }
     }
-
-    alert(`⚡ ADMISSION RELEASE COMPLETE:\n\nPayment verified for "${memberName}".\nLedger balance marked as PAID.\nFighter portal access has been globally UNLOCKED!`);
+    alert(`Payment verified for "${memberName}".`);
     renderFinancePage();
 };
 
@@ -497,7 +493,41 @@ window.deleteTransaction = function(txnId) {
         if (index !== -1) { window.MOCK_TRANSACTIONS.splice(index, 1); alert(`Purged successfully.`); renderFinancePage(); }
     } else if (inputPassword !== null) { alert("❌ ACCESS DENIED!"); }
 };
+// অ্যাডমিশন ফি আপডেট করার জন্য ডাইনামিক ফাংশন
+window.openFeesConfigModal = function() {
+    const modal = document.getElementById('transaction-modal');
+    if (!modal) return;
+    modal.innerHTML = `
+        <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[360px] shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="bg-darkBg/95 rounded-[14px] p-5 flex flex-col relative text-xs">
+                <button onclick="window.closeTransactionModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg z-50"><i class="ph ph-x"></i></button>
+                <div class="flex items-center space-x-2 border-b border-gray-800 pb-3 mb-4"><i class="ph ph-sliders text-xl text-purple-400"></i><h3 class="font-bold text-white text-sm">Configure Base Gym Fees</h3></div>
+                <div class="space-y-3 text-left">
+                    <div>
+                        <label class="text-gray-400 text-[10px] uppercase font-bold block mb-1">Admission Fee (System-Wide)</label>
+                        <div class="relative"><span class="absolute left-3 top-2 text-gray-600">₹</span>
+                        <input type="number" id="fee-config-admission" value="${window.GYM_FEES.admissionFee}" class="w-full bg-black/50 border border-gray-800 rounded-lg pl-7 pr-3 py-1.5 font-mono text-gray-200 focus:outline-none"></div>
+                    </div>
+                </div>
+                <button onclick="window.submitFeesConfig()" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2.5 rounded-lg mt-5 uppercase shadow">Save Configuration</button>
+            </div>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    setTimeout(() => { modal.classList.remove('opacity-0'); modal.firstElementChild.classList.add('scale-100'); }, 10);
+};
 
+window.submitFeesConfig = function() {
+    const newAdmissionFee = document.getElementById('fee-config-admission').value;
+    window.updateAdmissionFee(newAdmissionFee);
+    window.closeTransactionModal();
+    renderFinancePage();
+};
+
+window.updateAdmissionFee = function(newFee) {
+    window.GYM_FEES.admissionFee = parseFloat(newFee);
+    alert("Admission fee updated to ₹" + newFee + " system-wide!");
+};
 window.openFeesConfigModal = function() {
     const modal = document.getElementById('transaction-modal');
     if (!modal) return;

@@ -1,51 +1,82 @@
 // =========================================================================
-// js/components/member_registration.js — NEW MEMBER ADMISSION (FINAL)
+// js/components/member_registration.js — NEW MEMBER ADMISSION (OPTIMIZED)
 // =========================================================================
 
 function getMemberRegistrationView() {
-    // এখানে আমরা একটি সেফটি চেক দিচ্ছি (যদি GYM_FEES না থাকে, তবে 1000 ধরবে)
-    const admissionFee = (window.GYM_FEES && window.GYM_FEES.admissionFee) ? window.GYM_FEES.admissionFee : 1000;
+    // সেফটি চেক: গ্লোবাল ভ্যালু পাওয়া না গেলে ডিফল্ট ১০০০ ধরবে
+    const admissionFee = (window.GYM_FEES && typeof window.GYM_FEES.admissionFee !== 'undefined') ? window.GYM_FEES.admissionFee : 1000;
     
     const planOptions = window.GYM_PLANS.map(p => 
         `<option value="${p.name}" data-fee="${p.fee}">${p.name} - ₹${p.fee}</option>`
     ).join('');
 
+    // ফর্ম রেন্ডার হওয়ার পর যাতে ডিফল্ট ক্যালকুলেশন দেখায়, সেজন্য ৫ মিলি-সেকেন্ড ডিলে
+    setTimeout(() => { window.updateFeePreview(); }, 5);
+
     return `
-        <div class="bg-black/40 p-4 rounded-xl border border-gray-800">
-            <div class="flex justify-between items-center mb-2">
-                <span class="text-gray-400 text-xs uppercase font-bold">Admission Fee:</span>
-                <span id="adm-fee-display" class="text-gray-200 font-mono">₹${admissionFee}</span>
-            </div>
-            <div class="flex justify-between items-center">
-                <span class="text-gray-400 text-xs uppercase font-bold">Total Advance Due:</span>
-                <span id="fee-preview" class="text-green-400 font-mono text-xl font-bold">₹${admissionFee} + Plan Fee</span>
+        <div class="max-w-lg mx-auto bg-darkSurface border border-gray-800 p-8 rounded-2xl shadow-2xl animate-fadeIn">
+            <h2 class="text-white font-black text-xl mb-1">New Fighter Registration</h2>
+            <p class="text-gray-500 text-xs mb-8">Initiate member onboarding.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] text-gray-500 uppercase font-bold">Full Name</label>
+                    <input type="text" id="reg-name" placeholder="Enter Full Name" class="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-3 text-white mt-1 focus:border-brandRed outline-none">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase font-bold">WhatsApp Number</label>
+                        <input type="text" id="reg-phone" placeholder="+91 XXXXX XXXXX" class="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-3 text-white mt-1 focus:border-brandRed outline-none">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase font-bold">Date of Birth</label>
+                        <input type="date" id="reg-dob" class="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-3 text-white mt-1 focus:border-brandRed outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] text-gray-500 uppercase font-bold">Select Membership Plan</label>
+                    <select id="reg-plan-select" onchange="window.updateFeePreview()" class="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-3 text-white mt-1 focus:border-brandRed outline-none">
+                        ${planOptions}
+                    </select>
+                </div>
+
+                <div class="bg-black/40 p-4 rounded-xl border border-gray-800">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-gray-400 text-xs uppercase font-bold">Admission Fee:</span>
+                        <span id="adm-fee-display" class="text-gray-200 font-mono">₹${admissionFee}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400 text-xs uppercase font-bold">Total Advance Due:</span>
+                        <span id="fee-preview" class="text-green-400 font-mono text-xl font-bold">₹${admissionFee} + Plan Fee</span>
+                    </div>
+                </div>
+
+                <button onclick="window.submitNewRegistration()" class="w-full bg-brandRed hover:bg-red-700 text-white font-bold py-4 rounded-xl uppercase tracking-widest mt-4 transition-all">Submit Registration</button>
             </div>
         </div>
     `;
 }
 
-// আপডেট ফাংশনটিও আপডেট করে নিন:
+// ফি প্রিভিউ আপডেট ফাংশন
 window.updateFeePreview = function() {
     const select = document.getElementById('reg-plan-select');
+    if (!select) return;
+    
     const fee = parseFloat(select.options[select.selectedIndex].getAttribute('data-fee')) || 0;
-    const admission = (window.GYM_FEES && window.GYM_FEES.admissionFee) ? window.GYM_FEES.admissionFee : 1000;
+    const admission = (window.GYM_FEES && typeof window.GYM_FEES.admissionFee !== 'undefined') ? window.GYM_FEES.admissionFee : 1000;
     
-    document.getElementById('fee-preview').textContent = `₹${admission + fee}`;
-};
-
-window.updateFeePreview = function() {
-    const select = document.getElementById('reg-plan-select');
-    const fee = parseFloat(select.options[select.selectedIndex].getAttribute('data-fee')) || 0;
+    const feePreview = document.getElementById('fee-preview');
+    const admDisplay = document.getElementById('adm-fee-display');
     
-    // সরাসরি লেটেস্ট গ্লোবাল ভ্যালু নেওয়া
-    const admission = window.GYM_FEES?.admissionFee || 1000;
-    
-    document.getElementById('fee-preview').textContent = `₹${admission + fee}`;
-    document.getElementById('adm-fee-display').textContent = `₹${admission}`; // নতুন লাইন: Admission Fee ও আপডেট হবে
+    if (feePreview) feePreview.textContent = `₹${admission + fee}`;
+    if (admDisplay) admDisplay.textContent = `₹${admission}`;
 };
 
 window.submitNewRegistration = function() {
-    const ADMISSION_FEE = window.GYM_FEES.admissionFee; 
+    const ADMISSION_FEE = (window.GYM_FEES && typeof window.GYM_FEES.admissionFee !== 'undefined') ? window.GYM_FEES.admissionFee : 1000;
+    
     const name = document.getElementById('reg-name').value;
     const phone = document.getElementById('reg-phone').value;
     const planSelect = document.getElementById('reg-plan-select');
@@ -56,6 +87,7 @@ window.submitNewRegistration = function() {
 
     if (!name || !phone) return alert("Please fill all fields!");
 
+    // মেম্বার অবজেক্ট
     const newMember = {
         id: `m-${Date.now().toString().slice(-4)}`,
         name: name,
@@ -94,9 +126,4 @@ window.submitNewRegistration = function() {
 
     alert(`✅ Registration Successful!\nTotal Due: ₹${totalDue} (Admission: ₹${ADMISSION_FEE} + Plan: ₹${planFee}).`);
     navigateTo('finance'); 
-};
-
-window.updateAdmissionFee = function(newFee) {
-    window.GYM_FEES.admissionFee = parseFloat(newFee);
-    alert("Admission fee updated system-wide!");
 };

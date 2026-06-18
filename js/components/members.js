@@ -139,99 +139,66 @@ function renderMembersGrid() {
         `;
     }).join('');
 }
-
-window.openMemberProfile = function(memberId) {
-    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
-    if (!member) return;
-
-    const modal = document.getElementById('transaction-modal');
-    if (!modal) return;
-
-    const dueAmount = calculateOutstandingDue(member.name);
-    let borderRing = dueAmount > 0 ? "border-amber-500" : "border-brandRed";
-    if(member.status === 'lapsed') borderRing = "border-gray-700 grayscale";
-
-    const allData = `Fighter ID: ${member.id}\nName: ${member.name}\nPhone: ${member.phone}\nPlan: ${member.plan}\nExpiry: ${member.expiryDate}\nLedger Status: ${dueAmount > 0 ? 'Due ₹' + dueAmount : 'Paid'}`;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(allData)}&bgcolor=ffffff&color=000000&margin=10`;
-
-    // NEW LOGIC: Scan Action Button Dynamic Generation
-    let scanActionBtn = '';
-    if (member.status === 'lapsed') {
-        scanActionBtn = `<button disabled class="w-full bg-red-950/50 text-red-500 text-[11px] font-extrabold py-2 rounded-xl mt-4 border border-red-900/50 cursor-not-allowed uppercase tracking-wider">Account Lapsed (No-Show)</button>`;
-    } else if (member.portalLocked) {
-        scanActionBtn = `<button disabled class="w-full bg-gray-800 text-gray-500 text-[11px] font-bold py-2 rounded-xl mt-4 cursor-not-allowed uppercase tracking-wider">Clear Dues to Enable Scan</button>`;
-    } else {
-        scanActionBtn = `<button onclick="window.simulateMemberScan('${member.id}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-extrabold py-2 rounded-xl mt-4 shadow-lg uppercase tracking-wider flex justify-center items-center transition-colors"><i class="ph ph-scan text-sm mr-1.5"></i> Simulate Entrance Scan</button>`;
-    }
-
-    modal.innerHTML = `
-        <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[340px] shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
-            <div class="bg-darkBg/95 rounded-[14px] p-6 flex flex-col relative items-center text-xs overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-24 bg-brandRed/10 blur-2xl"></div>
-                <button onclick="window.closeTransactionModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg z-50"><i class="ph ph-x"></i></button>
-                
-                <div class="relative mt-2 z-10">
-                    <img src="${member.photoUrl}" class="w-24 h-24 rounded-full object-cover border-4 ${borderRing}">
-                </div>
-                
-                <h3 class="text-white font-bold text-xl mt-4 tracking-wide">${member.name}</h3>
-                <p class="text-gray-400 font-mono text-xs">${member.phone}</p>
-                
-                <div class="w-full bg-black/40 border border-gray-800 rounded-xl p-4 mt-6 space-y-2 z-10">
-                    <div class="flex justify-between border-b border-gray-800/50 pb-1"><span class="text-gray-500 font-bold uppercase text-[9px]">ID</span><span class="text-brandRed font-mono">${member.id}</span></div>
-                    
-                    <div class="flex justify-between items-center border-b border-gray-800/50 pb-1">
-                        <span class="text-gray-500 font-bold uppercase text-[9px]">Plan</span>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-white font-mono">${member.plan}</span>
-                            <button onclick="window.openPlanChangeWindow('${member.id}')" title="Change/Upgrade Plan" class="text-[10px] bg-purple-500/20 text-purple-400 hover:bg-purple-500 hover:text-white px-1.5 py-0.5 rounded transition-colors"><i class="ph ph-arrows-left-right"></i></button>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-between border-b border-gray-800/50 pb-1"><span class="text-gray-500 font-bold uppercase text-[9px]">Expiry</span><span class="${member.status === 'lapsed' ? 'text-red-500 font-bold' : member.expiryDate === 'Pending First Scan' ? 'text-blue-400 font-bold' : 'text-white'} font-mono">${member.expiryDate}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-500 font-bold uppercase text-[9px]">Due Balance</span><span class="${dueAmount > 0 ? 'text-amber-400' : 'text-green-400'} font-bold font-mono">₹${dueAmount}</span></div>
-                </div>
-
-                ${scanActionBtn}
-
-                <div class="mt-6 p-2 bg-white rounded-xl shadow-lg z-10"><img src="${qrUrl}" class="w-32 h-32 rounded-lg" alt="QR"></div>
-                <p class="text-[8px] text-gray-500 mt-2 uppercase tracking-[0.2em]">Universal Data Access QR</p>
-            </div>
-        </div>
-    `;
-    
-    modal.classList.remove('hidden');
-    setTimeout(() => { modal.classList.remove('opacity-0'); modal.firstElementChild.classList.add('scale-100'); }, 10);
-    modal.onclick = window.closeTransactionModal;
-};
-
 // NEW LOGIC: The First Scan Engine Core Function
 window.simulateMemberScan = function(memberId) {
     const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
-    if (!member || member.portalLocked || member.status === 'lapsed') return;
+    
+    // ১. চেক করুন মেম্বার পাওয়া যাচ্ছে কি না
+    if (!member) {
+        alert("Member not found in database!");
+        return;
+    }
+
+    // ২. বর্তমান সময় ও তারিখ
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    // ৩. স্ট্যাটাস আপডেট লজিক
+    member.checkedInToday = true; // এটিই মেইন ফ্ল্যাগ যা গ্রিডে সবুজ বাতি জ্বালাবে
+    member.lastCheckIn = `${todayStr} ${timeStr}`;
+
+    // ৪. যদি Pending First Scan হয়, তবেই অ্যাক্টিভ করুন
+    if (member.expiryDate === "Pending First Scan") {
+        const expiry = new Date();
+        expiry.setDate(expiry.getDate() + 30);
+        member.expiryDate = expiry.toISOString().slice(0, 10);
+        member.status = "active";
+    }
+
+    // ৫. ডাটা আপডেট হওয়ার পর ইন্টারফেস রিফ্রেশ করা
+    alert(`✅ Scan Successful for ${member.name} at ${timeStr}`);
+    
+    window.closeTransactionModal();
+    renderMembersPage(); // এই লাইনটি অত্যন্ত গুরুত্বপূর্ণ, এটি গ্রিড রিফ্রেশ করে
+    localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+};
+window.simulateMemberScan = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) {
+        alert("Member not found!");
+        return;
+    }
 
     const todayStr = new Date().toISOString().slice(0,10);
     const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-    if (member.expiryDate === "Pending First Scan") {
-        // যেদিন স্ক্যান করলো সেদিন থেকে ৩০ দিনের বিলিং সাইকেল শুরু
-        const expiry = new Date();
-        expiry.setDate(expiry.getDate() + 30); // ডিফল্ট ৩০ দিনের সাইকেল
-        
-        member.expiryDate = expiry.toISOString().slice(0,10);
-        member.status = "active";
-        
-        alert(`🎉 FIRST SCAN REGISTERED!\n\n${member.name}'s account is now ACTIVE. The 30-Day billing cycle officially starts TODAY.\n\n📅 New Validity: ${member.expiryDate}`);
-    } else {
-        alert(`✅ SCAN SUCCESSFUL!\n${member.name} checked in at ${timeStr}.`);
-    }
-
+    // ১. এক্সপ্লিকিটলি প্রপার্টি সেট করা (যাতে মিসিং না থাকে)
     member.checkedInToday = true;
     member.lastCheckIn = `${todayStr} ${timeStr}`;
-    window.closeTransactionModal();
-    renderMembersPage();
-};
 
+    // ২. যদি প্রথমবার স্ক্যান হয়, তবে স্ট্যাটাস চেঞ্জ
+    if (member.expiryDate === "Pending First Scan" || member.status === 'inactive') {
+        const expiry = new Date();
+        expiry.setDate(expiry.getDate() + 30);
+        member.expiryDate = expiry.toISOString().slice(0,10);
+        member.status = "active";
+    }
+
+    // ৩. গ্রিড রিফ্রেশ
+    alert(`✅ Scan Successful for ${member.name}!`);
+    window.closeTransactionModal();
+    renderMembersPage(); 
+};
 window.openPlanChangeWindow = function(memberId) {
     const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
     if (!member) return;

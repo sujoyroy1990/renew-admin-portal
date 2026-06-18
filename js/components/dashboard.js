@@ -288,13 +288,30 @@ function renderTrainerApprovals() {
 window.approveTrainer = function(reqId) {
     const index = window.PENDING_TRAINERS.findIndex(r => r.id === reqId);
     if (index === -1) return;
+    
     const req = window.PENDING_TRAINERS[index];
-    MOCK_TRAINERS.push({
-        id: `t${MOCK_TRAINERS.length + 1}`, name: req.name, photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150", email: req.email, phone: req.phone, address: "North Dumdum, Kolkata", joiningDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }), todayAttendance: { checkIn: "--:--", checkOut: null }, kpis: { totalAssigned: 0, retentionRate: 100, attendanceRate: 100, satisfaction: 5.0 }, revenue: { totalRevenue: 0, ptSales: 0, dietPlanSales: 0, supplementSales: 0 }
+    
+    // নতুন ট্রেইনারকে রেন্ডার করা ট্রেইনার্স ডাটাবেসে যুক্ত করা
+    window.MOCK_TRAINERS.push({
+        id: `t-${Date.now().toString().slice(-4)}`,
+        name: req.name,
+        email: req.email,
+        phone: req.phone,
+        photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+        joiningDate: new Date().toLocaleDateString('en-GB'),
+        status: "active", // পেন্ডিং থেকে সরাসরি অ্যাক্টিভ হয়ে গেল
+        todayAttendance: { checkIn: "--:--", checkOut: null },
+        kpis: { satisfaction: 5.0 },
+        address: "Birati, Kolkata"
     });
+
+    // পেন্ডিং লিস্ট থেকে রিমুভ করা
     window.PENDING_TRAINERS.splice(index, 1);
-    alert(`Approved: ${req.name} is now added to the roster.`);
-    renderLiveStatusTracking();
+    
+    alert(`Success: ${req.name} is now an active trainer.`);
+    
+    // রেন্ডার করা (ড্যাশবোর্ড রিফ্রেশ হবে)
+    renderLiveStatusTracking(); // এটি আপনার বিদ্যমান ট্রেইনার অ্যাপ্রুভাল প্যানেল আপডেট করবে
 };
 
 window.declineTrainer = function(reqId) {
