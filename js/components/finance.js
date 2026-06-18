@@ -23,7 +23,7 @@ if (savedPlans) {
 }
 
 if (!window.GYM_FEES) {
-    window.GYM_FEES = { "admission fee": 1000, "membership fee": 2500, "PT": 15000, "diet plan": 2000, "supplement": 3500, "Events booking": 4500, "other": 1000 };
+    window.GYM_FEES = { "advance fee": 1000, "membership fee": 2500, "PT": 15000, "diet plan": 2000, "supplement": 3500, "Events booking": 4500, "other": 1000 };
 }
 
 if (!window.MOCK_TRANSACTIONS) {

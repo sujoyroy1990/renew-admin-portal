@@ -1,8 +1,9 @@
 // =========================================================================
-// js/components/member_registration.js — NEW MEMBER ADMISSION
+// js/components/member_registration.js — NEW MEMBER ADMISSION (FINAL)
 // =========================================================================
 
 function getMemberRegistrationView() {
+    const admissionFee = window.GYM_FEES.admissionFee; 
     const planOptions = window.GYM_PLANS.map(p => 
         `<option value="${p.name}" data-fee="${p.fee}" data-duration="${p.duration}">${p.name} - ₹${p.fee} (${p.duration} Days)</option>`
     ).join('');
@@ -39,11 +40,11 @@ function getMemberRegistrationView() {
                 <div class="bg-black/40 p-4 rounded-xl border border-gray-800">
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-gray-400 text-xs uppercase font-bold">Admission Fee:</span>
-                        <span class="text-gray-200 font-mono">₹1000</span>
+                        <span id="adm-fee-display" class="text-gray-200 font-mono">₹${admissionFee}</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-gray-400 text-xs uppercase font-bold">Total Advance Due:</span>
-                        <span id="fee-preview" class="text-green-400 font-mono text-xl font-bold">₹1000 + Plan Fee</span>
+                        <span id="fee-preview" class="text-green-400 font-mono text-xl font-bold">₹${admissionFee} + Plan Fee</span>
                     </div>
                 </div>
 
@@ -56,24 +57,22 @@ function getMemberRegistrationView() {
 window.updateFeePreview = function() {
     const select = document.getElementById('reg-plan-select');
     const fee = parseFloat(select.options[select.selectedIndex].getAttribute('data-fee'));
-    document.getElementById('fee-preview').textContent = `₹${1000 + fee}`;
+    const admission = window.GYM_FEES.admissionFee; 
+    document.getElementById('fee-preview').textContent = `₹${admission + fee}`;
 };
 
 window.submitNewRegistration = function() {
-    const ADMISSION_FEE = 1000; 
-    
+    const ADMISSION_FEE = window.GYM_FEES.admissionFee; 
     const name = document.getElementById('reg-name').value;
     const phone = document.getElementById('reg-phone').value;
     const planSelect = document.getElementById('reg-plan-select');
     
     const planName = planSelect.value;
     const planFee = parseFloat(planSelect.options[planSelect.selectedIndex].getAttribute('data-fee'));
-    
     const totalDue = ADMISSION_FEE + planFee;
 
     if (!name || !phone) return alert("Please fill all fields!");
 
-    // মেম্বার অবজেক্ট
     const newMember = {
         id: `m-${Date.now().toString().slice(-4)}`,
         name: name,
@@ -112,4 +111,9 @@ window.submitNewRegistration = function() {
 
     alert(`✅ Registration Successful!\nTotal Due: ₹${totalDue} (Admission: ₹${ADMISSION_FEE} + Plan: ₹${planFee}).`);
     navigateTo('finance'); 
+};
+
+window.updateAdmissionFee = function(newFee) {
+    window.GYM_FEES.admissionFee = parseFloat(newFee);
+    alert("Admission fee updated system-wide!");
 };
