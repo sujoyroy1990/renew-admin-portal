@@ -307,3 +307,117 @@ window.dispatchGatewayNotices = function() {
 
     alert(`🚀 GATEWAY NOTICES DISPATCHED SUCCESSFULLY!\n\nThe automated system scanned the entire roster and dispatched the following alerts:\n\n💳 Active Payment Dues Reminder: ${dueCount} Members\n📅 7-Day Expiry Warning: ${exp7Count} Members\n⚠️ 3-Day Expiry Alert: ${exp3Count} Members\n🔒 1-Day Pre-Gate Block Final Notice: ${exp1Count} Members`);
 };
+
+// =========================================================================
+// MEMBER DETAILS MODAL & DYNAMIC TRAINER ASSIGNMENT
+// =========================================================================
+window.openMemberProfile = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return;
+
+    const modal = document.getElementById('transaction-modal');
+    if (!modal) return;
+
+    const dueAmount = calculateOutstandingDue(member.name);
+    let borderRing = dueAmount > 0 ? "border-amber-500 animate-pulse" : "border-brandRed";
+    if (member.status === 'lapsed') borderRing = "border-gray-700 grayscale";
+
+    const allData = `Fighter ID: ${member.id}\nName: ${member.name}\nPhone: ${member.phone}\nPlan: ${member.plan}\nExpiry: ${member.expiryDate}\nLedger Status: ${dueAmount > 0 ? 'Due ₹' + dueAmount : 'Paid'}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(allData)}&bgcolor=ffffff&color=000000&margin=10`;
+
+    // Trainer dropdown creation
+    const trainers = window.MOCK_TRAINERS || [];
+    const trainerOptions = trainers.map(t => {
+        const isSelected = t.id === member.trainerId ? 'selected' : '';
+        return `<option value="${t.id}" ${isSelected}>${t.name}</option>`;
+    }).join('');
+    const noTrainerSelected = !member.trainerId ? 'selected' : '';
+
+    const trainerSelectDropdown = `
+        <select onchange="window.assignTrainerToMember('${member.id}', this.value)" class="bg-black/60 border border-gray-800 text-gray-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-brandRed font-medium transition-colors cursor-pointer w-36">
+            <option value="" ${noTrainerSelected}>No PT Assigned</option>
+            ${trainerOptions}
+        </select>
+    `;
+
+    let scanActionBtn = '';
+    if (member.status === 'lapsed') {
+        scanActionBtn = `<button disabled class="w-full bg-red-950/50 text-red-500 text-[11px] font-extrabold py-2 rounded-xl mt-4 border border-red-900/50 cursor-not-allowed uppercase tracking-wider">Account Lapsed (No-Show)</button>`;
+    } else if (member.portalLocked) {
+        scanActionBtn = `<button disabled class="w-full bg-gray-800 text-gray-500 text-[11px] font-bold py-2 rounded-xl mt-4 cursor-not-allowed uppercase tracking-wider">Clear Dues to Enable Scan</button>`;
+    } else {
+        scanActionBtn = `<button onclick="window.simulateMemberScan('${member.id}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-extrabold py-2.5 rounded-xl mt-4 shadow-lg uppercase tracking-wider flex justify-center items-center transition-colors"><i class="ph ph-scan text-sm mr-1.5 animate-pulse"></i> Simulate Entrance Scan</button>`;
+    }
+
+    modal.innerHTML = `
+        <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[350px] shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="bg-darkBg/95 rounded-[14px] p-6 flex flex-col relative items-center text-xs overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-24 bg-brandRed/10 blur-2xl"></div>
+                <button onclick="window.closeTransactionModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg z-50"><i class="ph ph-x"></i></button>
+                
+                <div class="relative mt-2 z-10">
+                    <img src="${member.photoUrl}" class="w-24 h-24 rounded-full object-cover border-4 ${borderRing}">
+                </div>
+                
+                <h3 class="text-white font-bold text-lg mt-4 tracking-wide">${member.name}</h3>
+                <p class="text-gray-400 font-mono text-xs">${member.phone}</p>
+                
+                <div class="w-full bg-black/40 border border-gray-800 rounded-xl p-4 mt-6 space-y-2.5 z-10 text-left">
+                    <div class="flex justify-between items-center border-b border-gray-800/50 pb-1.5">
+                        <span class="text-gray-500 font-bold uppercase text-[9px]">Fighter ID</span>
+                        <span class="text-brandRed font-mono font-bold">${member.id.toUpperCase()}</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center border-b border-gray-800/50 pb-1.5">
+                        <span class="text-gray-500 font-bold uppercase text-[9px]">Plan</span>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-white font-mono">${member.plan}</span>
+                            <button onclick="window.openPlanChangeWindow('${member.id}')" title="Upgrade Plan" class="text-[10px] bg-purple-500/20 text-purple-400 hover:bg-purple-500 hover:text-white px-1.5 py-0.5 rounded transition-colors"><i class="ph ph-arrows-left-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center border-b border-gray-800/50 pb-1.5">
+                        <span class="text-gray-500 font-bold uppercase text-[9px]">Personal Trainer</span>
+                        ${trainerSelectDropdown}
+                    </div>
+
+                    <div class="flex justify-between items-center border-b border-gray-800/50 pb-1.5">
+                        <span class="text-gray-500 font-bold uppercase text-[9px]">Expiry</span>
+                        <span class="${member.status === 'lapsed' ? 'text-red-500 font-bold' : member.expiryDate === 'Pending First Scan' ? 'text-blue-400 font-bold animate-pulse' : 'text-white'} font-mono">${member.expiryDate}</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500 font-bold uppercase text-[9px]">Due Balance</span>
+                        <span class="${dueAmount > 0 ? 'text-amber-400' : 'text-green-400'} font-bold font-mono">₹${dueAmount.toLocaleString()}</span>
+                    </div>
+                </div>
+
+                ${scanActionBtn}
+
+                <div class="mt-6 p-2 bg-white rounded-xl shadow-lg z-10"><img src="${qrUrl}" class="w-32 h-32 rounded-lg" alt="QR"></div>
+                <p class="text-[8px] text-gray-500 mt-2 uppercase tracking-[0.2em]">Universal Data Access QR</p>
+            </div>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+    setTimeout(() => { modal.classList.remove('opacity-0'); modal.firstElementChild.classList.add('scale-100'); }, 10);
+    modal.onclick = window.closeTransactionModal;
+};
+
+window.assignTrainerToMember = function(memberId, selectedTrainerId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return;
+
+    member.trainerId = selectedTrainerId;
+
+    let successMessage = `Success! ${member.name} has been unassigned from personal training.`;
+    if (selectedTrainerId) {
+        const trainer = window.MOCK_TRAINERS.find(t => t.id === selectedTrainerId);
+        successMessage = `Authorized! ${member.name} has been successfully assigned to coach ${trainer ? trainer.name : 'Trainer'}.`;
+    }
+
+    alert(successMessage);
+    renderMembersPage();
+    window.openMemberProfile(memberId);
+};

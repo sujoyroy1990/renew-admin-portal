@@ -92,11 +92,20 @@ window.submitNewRegistration = function() {
         id: `m-${Date.now().toString().slice(-4)}`,
         name: name,
         phone: phone,
+        email: '',
         plan: planName,
         status: 'inactive',
         expiryDate: 'Pending Payment Clearance',
         portalLocked: true, 
-        photoUrl: 'https://ui-avatars.com/api/?name=' + name
+        photoUrl: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=1e1e1e&color=ffffff&bold=true',
+        checkedInToday: false,
+        registrationDate: new Date().toISOString().slice(0, 10),
+        trainerId: '',
+        weight: '',
+        height: '',
+        age: '',
+        formUploaded: false,
+        assessmentData: {}
     };
 
     window.MOCK_MEMBERS.push(newMember);

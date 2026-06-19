@@ -1,19 +1,19 @@
 // js/components/trainers.js
 if (!window.MOCK_TRAINERS) {
     window.MOCK_TRAINERS = [
-        { 
-            id: "t1", name: "Rajat Sharma", email: "rajat@gym.com", phone: "9830011223", 
-            photoUrl: "https://images.unsplash.com/photo-1597403864947-a85709d7d4c8?w=200", 
-            joiningDate: "12 Jan 2024", status: "active", 
-            todayAttendance: { checkIn: "06:00", checkOut: null }, 
-            kpis: { satisfaction: 4.8 }, address: "Birati, Kolkata" 
+        {
+            id: "t1", name: "Rajat Sharma", email: "rajat@gym.com", phone: "9830011223",
+            photoUrl: "https://images.unsplash.com/photo-1597403864947-a85709d7d4c8?w=200",
+            joiningDate: "12 Jan 2024", status: "active",
+            todayAttendance: { checkIn: "06:00", checkOut: null },
+            kpis: { satisfaction: 4.8 }, address: "Birati, Kolkata"
         },
-        { 
-            id: "t2", name: "Vikram Singh", email: "vikram@gym.com", phone: "9831199887", 
-            photoUrl: "https://images.unsplash.com/photo-1611672585731-fa10603fb9e0?w=200", 
-            joiningDate: "15 Feb 2025", status: "pending", 
-            todayAttendance: { checkIn: "--:--", checkOut: null }, 
-            kpis: { satisfaction: 4.5 }, address: "Madhyamgram, Kolkata" 
+        {
+            id: "t2", name: "Vikram Singh", email: "vikram@gym.com", phone: "9831199887",
+            photoUrl: "https://images.unsplash.com/photo-1611672585731-fa10603fb9e0?w=200",
+            joiningDate: "15 Feb 2025", status: "pending",
+            todayAttendance: { checkIn: "--:--", checkOut: null },
+            kpis: { satisfaction: 4.5 }, address: "Madhyamgram, Kolkata"
         }
     ];
 }
@@ -72,13 +72,13 @@ function renderTrainersPage() {
     const container = document.getElementById('trainers-container');
     if (!container) return;
 
-    const trainers = window.MOCK_TRAINERS || []; 
+    const trainers = window.MOCK_TRAINERS || [];
 
     container.innerHTML = trainers.map(t => {
         const hasLeft = t.todayAttendance.checkOut !== null;
         const attendanceBadge = hasLeft
             ? `<span class="text-[10px] bg-gray-500/10 text-gray-400 border border-gray-500/20 px-2 py-0.5 rounded-full font-bold uppercase">Shift Ended</span>`
-            : `<span class="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide flex items-center"><span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>On Duty</span>`;
+            : '';
 
         const stars = '★'.repeat(Math.round(t.kpis.satisfaction)) + '☆'.repeat(5 - Math.round(t.kpis.satisfaction));
         const address = t.address || "Birati, Kolkata";
@@ -100,12 +100,11 @@ function renderTrainersPage() {
                             <div class="flex items-center space-x-2">
                                 <h3 class="text-lg font-bold text-white tracking-wide">${t.name}</h3>
                                 ${attendanceBadge}
-                                <span class="text-[10px] ${t.status === 'active' ? 'text-green-400' : 'text-amber-400'} uppercase font-bold border border-gray-700 px-2 py-0.5 rounded-full">${t.status}</span>
                             </div>
                             <p class="text-xs text-gray-500 font-mono mt-0.5">${t.email} | ${t.phone}</p>
                         </div>
                     </div>
-                    ${t.status === 'pending' ? `<button onclick="window.approveTrainer('${t.id}')" class="bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all">Approve Trainer</button>` : ''}
+
                     
                     <div class="text-right font-mono text-xs text-gray-500 bg-black/20 px-3 py-1.5 rounded-lg border border-gray-800/40">
                         In: ${t.todayAttendance.checkIn} | Out: ${t.todayAttendance.checkOut ? t.todayAttendance.checkOut : '--:--'}
@@ -143,14 +142,14 @@ function renderTrainersPage() {
                     </h4>
                     <div class="max-h-28 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                         ${myLogs.length === 0 ? `<p class="text-gray-600 text-[11px] italic">No logs or commands issued yet.</p>` : myLogs.map(log => {
-                            let icon = "ph-chat-text text-blue-400";
-                            if(log.type === 'task') icon = "ph-clipboard-text text-amber-400";
-                            if(log.type === 'notice') icon = "ph-note text-purple-400";
-                            if(log.type === 'announcement') icon = "ph-megaphone text-brandRed";
+            let icon = "ph-chat-text text-blue-400";
+            if (log.type === 'task') icon = "ph-clipboard-text text-amber-400";
+            if (log.type === 'notice') icon = "ph-note text-purple-400";
+            if (log.type === 'announcement') icon = "ph-megaphone text-brandRed";
 
-                            const deadlineText = log.deadline ? `<span class="text-amber-500/80 font-mono text-[9px] block">Deadline: ${log.deadline}</span>` : '';
+            const deadlineText = log.deadline ? `<span class="text-amber-500/80 font-mono text-[9px] block">Deadline: ${log.deadline}</span>` : '';
 
-                            return `
+            return `
                                 <div class="bg-black/30 p-2 rounded border border-gray-800/50 flex items-start space-x-2 text-[11px]">
                                     <i class="ph ${icon} text-sm mt-0.5"></i>
                                     <div class="flex-1">
@@ -163,7 +162,7 @@ function renderTrainersPage() {
                                     </div>
                                 </div>
                             `;
-                        }).reverse().join('')}
+        }).reverse().join('')}
                     </div>
                 </div>
 
@@ -272,7 +271,7 @@ function submitTrainerAction(trainerId, actionType) {
 // আপনার openTrainerActionModal ফাংশনটি আপডেট করুন অথবা এই লজিকটি খেয়াল করুন:
 const originalOpenModal = window.openTrainerActionModal; // আগের ফাংশনটি রেফারেন্স হিসেবে রাখা (ঐচ্ছিক)
 
-window.openTrainerActionModal = function(trainerId, actionType) {
+window.openTrainerActionModal = function (trainerId, actionType) {
     const modal = document.getElementById('trainer-action-modal');
     if (!modal) return;
 
@@ -328,7 +327,7 @@ window.openTrainerActionModal = function(trainerId, actionType) {
                 </div>
             </div>
         `;
-        
+
         modal.classList.remove('hidden');
         setTimeout(() => {
             modal.classList.remove('opacity-0');
@@ -343,48 +342,42 @@ window.openTrainerActionModal = function(trainerId, actionType) {
 }
 
 // ৮. ডাটা সেভ করার ফাংশন (বানান সংশোধন করা হয়েছে)
-window.submitTrainerRegistration = function() {
-  
+window.submitTrainerRegistration = function () {
+
     const name = document.getElementById('new-t-name').value.trim();
     const email = document.getElementById('new-t-email').value.trim();
     const phone = document.getElementById('new-t-phone').value.trim();
-    
+    const specialtySelect = document.getElementById('new-t-specialty');
+    const specialty = specialtySelect ? specialtySelect.value.trim() : "MMA & Kickboxing";
 
     if (!name || !email || !phone) {
         alert("Please fill in all mandatory fields!");
         return;
     }
 
-    const today = new Date();
-    const formattedDate = `${String(today.getDate()).padStart(2, '0')} ${today.toLocaleString('default', { month: 'short' })} ${today.getFullYear()}`;
-
-    const newTrainer = {
-        id: `t-${Date.now().toString().slice(-4)}`,
+    const newPending = {
+        id: `req-${Date.now().toString().slice(-4)}`,
         name: name,
         email: email,
         phone: phone,
-        photoUrl: photo,
-        joiningDate: formattedDate,
-        status: "pending", 
-        todayAttendance: { checkIn: "--:--", checkOut: null },
-        kpis: { satisfaction: 5, clients: 0 },
-        address: "Birati, Kolkata"
+        specialty: specialty,
+        experience: "New Entry"
     };
 
-    if (typeof window.MOCK_TRAINERS === 'undefined') {
-        window.MOCK_TRAINERS = [];
+    if (typeof window.PENDING_TRAINERS === 'undefined') {
+        window.PENDING_TRAINERS = [];
     }
-    
-    window.MOCK_TRAINERS.push(newTrainer);
-    
-    alert(`⚡ NEW EXPERT DEPLOYED:\nTrainer "${name}" has been added to the roster with PENDING status.`);
+
+    window.PENDING_TRAINERS.push(newPending);
+
+    alert(`⚡ REGISTRATION SUBMITTED:\nTrainer "${name}" has been added to Pending Registrations for Admin approval.`);
 
     closeTrainerActionModal();
-    renderTrainersPage(); 
+    renderTrainersPage();
 };
 
 /// ৯. ইউনিফাইড মোডাল হ্যান্ডলার (সব অ্যাকশন এখানে)
-window.openTrainerActionModal = function(trainerId, actionType) {
+window.openTrainerActionModal = function (trainerId, actionType) {
     const modal = document.getElementById('trainer-action-modal');
     if (!modal) return;
 
@@ -409,13 +402,13 @@ window.openTrainerActionModal = function(trainerId, actionType) {
                 </div>
             </div>
         `;
-    } 
+    }
     // যদি মেসেজ, টাস্ক বা অ্যানাউন্সমেন্ট হয়
     else {
         // এখানে আপনার আগের মোডাল লজিক (যা এই ফাংশনের শুরুতে ছিল)
         let targetName = (trainerId !== 'all') ? (window.MOCK_TRAINERS.find(t => t.id === trainerId)?.name || "Trainer") : "All Trainers";
         let iconClass = actionType === 'announcement' ? "ph ph-megaphone text-brandRed" : "ph ph-chat-text text-blue-400";
-        
+
         modal.innerHTML = `
             <div class="bg-gray-900 border border-gray-800 p-5 rounded-2xl w-[400px] shadow-2xl relative" onclick="event.stopPropagation()">
                 <button onclick="closeTrainerActionModal()" class="absolute top-4 right-4 text-gray-500"><i class="ph ph-x"></i></button>

@@ -36,76 +36,15 @@ const MOCK_TRAINERS = [
 
 // ২. মেম্বারদের ডামি ডেটা (Mock Members)
 // স্ট্যাটাস লজিক: active, expiring (১৫ দিনের মধ্যে শেষ হবে), at_risk (২ মাস ডিউ), expired (৩ মাস ডিউ)
-// js/mockData.js এর ভেতর MOCK_MEMBERS অংশটি এভাবে আপডেট করুন:
 const MOCK_MEMBERS = [
-    {
-        id: "m1",
-        name: "Sourav Ganguly",
-        photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150",
-        phone: "9830012345",
-        email: "sourav@gmail.com",
-        plan: "PT-Combo",
-        joinDate: "2026-01-01",
-        expiryDate: "2026-07-01",
-        lastPaymentDate: "2026-06-01",
-        monthlyFee: 5000,
-        trainerId: "t1",
-        status: "active",
-        checkedInToday: true,
-        lastCheckIn: "2026-06-15 07:00 AM",
-        lastCheckOut: "2026-06-15 08:45 AM" // জিম করে বের হয়ে গেছেন (Completed)
-    },
-    {
-        id: "m2",
-        name: "Anirban Dutta",
-        photoUrl: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150",
-        phone: "9830054321",
-        email: "anirban@gmail.com",
-        plan: "Monthly",
-        joinDate: "2026-05-20",
-        expiryDate: "2026-06-25",
-        lastPaymentDate: "2026-05-20",
-        monthlyFee: 2000,
-        trainerId: "t1",
-        status: "expiring",
-        checkedInToday: true,
-        lastCheckIn: "2026-06-15 08:30 AM",
-        lastCheckOut: null // এখনো জিমের ভেতরে আছেন (Inside Gym)
-    },
-    // m3 এবং m4 আগের মতোই থাকবে...
-    {
-        id: "m3",
-        name: "Rohan Das",
-        photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
-        phone: "9433011223",
-        email: "rohan@gmail.com",
-        plan: "Quarterly",
-        joinDate: "2025-10-10",
-        expiryDate: "2026-04-10", // ২ মাস ধরে টাকা দেয়নি
-        lastPaymentDate: "2026-04-10",
-        monthlyFee: 2000,
-        trainerId: "t2",
-        status: "at_risk",
-        checkedInToday: false,
-        lastCheckIn: "2026-06-12 06:15 PM"
-    },
-    {
-        id: "m4",
-        name: "Subham Sen",
-        photoUrl: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150",
-        phone: "9123456789",
-        email: "subham@gmail.com",
-        plan: "Monthly",
-        joinDate: "2025-11-01",
-        expiryDate: "2026-03-01", // ৩ মাসের বেশি ডিউ চলে গেছে
-        lastPaymentDate: "2026-02-01",
-        monthlyFee: 2000,
-        trainerId: null,
-        status: "expired",
-        checkedInToday: false,
-        lastCheckIn: null
-    }
+    { id: "m-001", name: "Subham Das", phone: "+91 98300 11223", email: "subham@gmail.com", plan: "Monthly Regular Track", expiryDate: "2026-07-12", status: "active", photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150", checkedInToday: true, lastCheckIn: "2026-06-17 08:30 AM", registrationDate: "2026-05-10", trainerId: "t1" },
+    { id: "m-002", name: "Joydeep Pal", phone: "+91 91632 55443", email: "joydeep@gmail.com", plan: "Fighter Premium Track", expiryDate: "Pending First Scan", status: "inactive", photoUrl: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150", checkedInToday: false, portalLocked: true, registrationDate: "2026-06-15", trainerId: "" },
+    { id: "m-003", name: "Sourav Ganguly", phone: "+91 98311 99887", email: "sourav@gmail.com", plan: "PT Combo Track", expiryDate: "2026-06-22", status: "expiring", photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150", checkedInToday: true, lastCheckIn: "2026-06-17 07:15 AM", registrationDate: "2026-05-22", trainerId: "t1" },
+    { id: "m-004", name: "Anirban Das", phone: "+91 97482 33445", email: "anirban@gmail.com", plan: "Elite Annual Pack", expiryDate: "Pending First Scan", status: "inactive", photoUrl: "https://images.unsplash.com/photo-1620122303020-43ec4b6cf7f8?w=150", checkedInToday: false, portalLocked: false, registrationDate: "2026-05-01", trainerId: "" },
+    { id: "m-005", name: "Rohan Das", phone: "9433011223", email: "rohan@gmail.com", plan: "Quarterly Track", expiryDate: "2026-04-10", status: "at_risk", photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150", checkedInToday: false, registrationDate: "2025-10-10", trainerId: "t2" }
 ];
+window.MOCK_MEMBERS = MOCK_MEMBERS;
+window.MOCK_TRAINERS = MOCK_TRAINERS;
 
 // ৩. ফিন্যান্স বা ক্যাশ ফ্লো ডামি ডেটা (Mock Transactions)
 const MOCK_TRANSACTIONS = [

@@ -58,7 +58,10 @@ function navigateTo(viewId) {
     } 
     else if (viewId === 'fighter-portal') { 
         mainContent.innerHTML = getFighterPortalView(); 
-    }// app.js এ
+    }
+    else if (viewId === 'trainer-portal') { 
+        mainContent.innerHTML = getTrainerPortalView(); 
+    }
     else if (viewId === 'trainer-signup') { 
         mainContent.innerHTML = getTrainerSignupView(); 
     }

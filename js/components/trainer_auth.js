@@ -15,16 +15,27 @@ function getTrainerSignupView() {
 }
 
 window.submitTrainerSignup = function() {
-    const name = document.getElementById('trainer-name').value;
-    const newTrainer = {
-        id: `t-${Date.now().toString().slice(-4)}`,
+    const name = document.getElementById('trainer-name').value.trim();
+    const email = document.getElementById('trainer-email').value.trim();
+    
+    if (!name || !email) {
+        alert("Please fill in both Name and Email!");
+        return;
+    }
+
+    const newPending = {
+        id: `req-${Date.now().toString().slice(-4)}`,
         name: name,
-        status: 'pending' // Admin approve korle active hobe
+        email: email,
+        phone: "",
+        specialty: "General",
+        experience: "Self Registered"
     };
     
-    // MOCK_TRAINERS এ পুশ করা (যদি না থাকে তবে ইনিশিয়ালাইজ করুন)
-    if (!window.MOCK_TRAINERS) window.MOCK_TRAINERS = [];
-    window.MOCK_TRAINERS.push(newTrainer);
+    if (typeof window.PENDING_TRAINERS === 'undefined') {
+        window.PENDING_TRAINERS = [];
+    }
+    window.PENDING_TRAINERS.push(newPending);
     
     alert("✅ Registration Submitted! Admin approval pending.");
 };
