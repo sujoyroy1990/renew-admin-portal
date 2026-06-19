@@ -33,7 +33,13 @@ function getTrainerPortalView() {
 
     const t = loggedInTrainer;
     const assignedFighters = MOCK_MEMBERS.filter(m => m.trainerId === t.id);
-    const liveSales = calculateTrainerSales(t.id);
+
+    // Shared revenue engine ব্যবহার করে current month-এর ডেটা নেওয়া হচ্ছে
+    const _curMonth = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+    const liveSales = (typeof window.calculateTrainerEarnings === 'function')
+        ? window.calculateTrainerEarnings(t.id, _curMonth)
+        : { totalRevenue: 0, totalCommission: 0, breakdown: [] };
+
     const myLogs = window.TRAINER_LOGS.filter(log => log.trainerId === t.id || log.trainerId === 'all');
 
     const hasLeft = t.todayAttendance.checkOut !== null;
@@ -91,9 +97,13 @@ function getTrainerPortalView() {
                         <div class="p-3 bg-amber-500/10 text-amber-400 rounded-xl text-2xl"><i class="ph ph-star"></i></div>
                         <div><p class="text-gray-500 text-xs font-bold uppercase tracking-wider">KPI Rating</p><h4 class="text-xl font-black mt-1 font-mono text-amber-400">${t.kpis.satisfaction.toFixed(1)} <span class="text-xs text-gray-500 font-sans">${stars}</span></h4></div>
                     </div>
-                    <div class="bg-darkSurface border border-gray-800 p-5 rounded-2xl flex items-center space-x-4 shadow-md md:col-span-2">
+                <div class="bg-darkSurface border border-gray-800 p-5 rounded-2xl flex items-center space-x-4 shadow-md md:col-span-2">
                         <div class="p-3 bg-green-500/10 text-green-400 rounded-xl text-2xl"><i class="ph ph-wallet"></i></div>
-                        <div><p class="text-gray-500 text-xs font-bold uppercase tracking-wider">Revenue Share</p><h4 class="text-xl font-black mt-1 font-mono text-green-400">₹${liveSales.totalRevenue.toLocaleString()}</h4></div>
+                        <div class="flex-1">
+                            <p class="text-gray-500 text-xs font-bold uppercase tracking-wider">Revenue Share (This Month)</p>
+                            <h4 class="text-xl font-black mt-1 font-mono text-green-400">₹${liveSales.totalRevenue.toLocaleString()}</h4>
+                            <p class="text-[10px] text-indigo-300 font-mono mt-0.5">Commission: ₹${(liveSales.totalCommission || 0).toLocaleString('en-IN', {maximumFractionDigits:0})}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -164,6 +174,11 @@ function getTrainerPortalView() {
                             }
                         </div>
                     </div>
+                </div>
+
+                <!-- REVENUE SHARE COMMISSION BREAKDOWN PANEL -->
+                <div class="bg-darkSurface border border-gray-800 p-6 rounded-2xl shadow-xl" id="trainer-revenue-panel">
+                    ${renderTrainerRevenuePanel(t.id)}
                 </div>
             </div>
         `;
@@ -276,6 +291,106 @@ function getTrainerPortalView() {
         </div>
     `;
 }
+
+// =========================================================================
+// REVENUE SHARE BREAKDOWN PANEL — Shared engine ব্যবহার করে
+// =========================================================================
+
+/**
+ * renderTrainerRevenuePanel(trainerId)
+ * Trainer dashboard-এ commission breakdown box রেন্ডার করে।
+ * window.calculateTrainerEarnings (mockData.js-এ defined) ব্যবহার করে
+ * যাতে Admin ও Trainer একই লজিক থেকে ডেটা পায়।
+ */
+function renderTrainerRevenuePanel(trainerId) {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const prevMonth = (() => {
+        const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    })();
+
+    const monthLabel = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+
+    let result = { totalRevenue: 0, totalCommission: 0, breakdown: [] };
+    if (typeof window.calculateTrainerEarnings === 'function') {
+        result = window.calculateTrainerEarnings(trainerId, currentMonth);
+    }
+
+    const commissionRules = window.COMMISSION_RULES || { 'pt': 0.20, 'diet plan': 0.10, 'supplement': 0.05 };
+    const rateLabels = { 'pt': '20%', 'diet plan': '10%', 'supplement': '5%' };
+
+    const breakdownRows = result.breakdown.length > 0
+        ? result.breakdown.map(b => {
+            const catKey = b.category.toLowerCase();
+            const rateLabel = rateLabels[catKey] || `${Math.round((commissionRules[catKey] || 0) * 100)}%`;
+            return `
+                <div class="flex items-center justify-between bg-black/30 border border-gray-800/60 p-3 rounded-xl">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-2 h-2 rounded-full bg-indigo-400"></div>
+                        <span class="text-gray-300 text-xs font-semibold uppercase tracking-wide">${b.category}</span>
+                        <span class="text-[9px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded font-mono font-bold">${rateLabel} rate</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-white font-mono text-xs font-bold">₹${b.commission.toLocaleString('en-IN', {maximumFractionDigits: 0})}</div>
+                        <div class="text-[9px] text-gray-500 font-mono">on ₹${b.revenue.toLocaleString('en-IN')}</div>
+                    </div>
+                </div>
+            `;
+        }).join('')
+        : `<p class="text-gray-600 text-xs italic text-center py-4">No commissionable income this month yet.</p>`;
+
+    return `
+        <div class="flex justify-between items-center border-b border-gray-800/60 pb-3 mb-4">
+            <h4 class="text-gray-400 font-bold tracking-wide text-xs uppercase flex items-center">
+                <i class="ph ph-chart-bar text-green-400 mr-2 text-base"></i>Revenue Share Breakdown
+                <span class="ml-2 text-[9px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full font-mono uppercase">${monthLabel}</span>
+            </h4>
+            <div class="text-right">
+                <p class="text-[9px] text-gray-500 uppercase font-bold">Total Commission</p>
+                <p class="text-lg font-black font-mono text-green-400">₹${result.totalCommission.toLocaleString('en-IN', {maximumFractionDigits: 0})}</p>
+            </div>
+        </div>
+
+        <div class="space-y-2.5 mb-4">
+            ${breakdownRows}
+        </div>
+
+        <div class="bg-gradient-to-r from-green-950/30 to-black border border-green-900/20 p-3.5 rounded-xl flex items-center justify-between">
+            <div>
+                <p class="text-[10px] text-gray-500 uppercase font-bold">Total Sales Revenue Linked</p>
+                <p class="text-base font-black font-mono text-white mt-0.5">₹${result.totalRevenue.toLocaleString('en-IN')}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-[10px] text-gray-500 uppercase font-bold">Your Earning Share</p>
+                <p class="text-base font-black font-mono text-green-400 mt-0.5">₹${result.totalCommission.toLocaleString('en-IN', {maximumFractionDigits: 0})}</p>
+            </div>
+        </div>
+
+        <p class="text-[9px] text-gray-600 mt-3 text-center font-mono">⚡ Live sync — updates instantly when admin logs new income</p>
+    `;
+}
+
+// =========================================================================
+// REAL-TIME SYNC: Admin Finance → Trainer Portal
+// Admin income entry হলেই এই listener trainer portal-এ নতুন revenue দেখায়
+// =========================================================================
+window.addEventListener('trainerDataUpdated', function(event) {
+    if (!loggedInTrainer) return;
+    const { trainerId } = event.detail || {};
+
+    // শুধুমাত্র logged-in trainer-এর entry হলে panel update করব
+    if (trainerId && trainerId === loggedInTrainer.id) {
+        const panel = document.getElementById('trainer-revenue-panel');
+        if (panel) {
+            // Smooth flash animation দিয়ে panel update
+            panel.style.transition = 'box-shadow 0.4s ease';
+            panel.style.boxShadow = '0 0 20px rgba(34,197,94,0.4)';
+            panel.innerHTML = renderTrainerRevenuePanel(loggedInTrainer.id);
+            setTimeout(() => { panel.style.boxShadow = ''; }, 1500);
+        }
+    }
+});
 
 // =========================================================================
 // ACTION TRIGGERS & DELEGATES
@@ -641,8 +756,7 @@ window.openAssessmentForm = function(memberId) {
                     </div>
                 </div>
 
-                <!-- FOOTER ACTIONS -->
-                <div class="flex justify-end space-x-3 border-t border-gray-800 pt-4 mt-4 z-10">
+                            <div class="flex justify-end space-x-3 border-t border-gray-800 pt-4 mt-4 z-10">
                     <button type="button" onclick="window.closeTrainerModal()" class="px-5 py-2.5 bg-black/40 border border-gray-800 hover:bg-gray-800 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-all">Cancel</button>
                     <button type="button" onclick="window.saveAssessmentForm('${member.id}')" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all">Save Assessment</button>
                 </div>

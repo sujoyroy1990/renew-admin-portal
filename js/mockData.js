@@ -73,3 +73,70 @@ const getDashboardMetrics = () => {
         expiringSoon
     };
 };
+
+// =========================================================================
+// ৬. শেয়ার্ড রেভিনিউ শেয়ারিং ইঞ্জিন — Admin ও Trainer উভয় পোর্টাল ব্যবহার করে
+// =========================================================================
+
+// কমিশন রুলস: category → share rate
+window.COMMISSION_RULES = {
+    'pt':           0.20,  // 20% — Personal Training
+    'diet plan':    0.10,  // 10% — Diet Plan Chart
+    'supplement':   0.05,  // 5%  — Supplement Sales
+};
+
+/**
+ * calculateTrainerEarnings(trainerId, month)
+ * @param {string} trainerId  — e.g. "t1"
+ * @param {string} month      — e.g. "2026-06" (YYYY-MM prefix)
+ * @returns {{ totalRevenue, totalCommission, breakdown: [{category, revenue, commission, rate}] }}
+ *
+ * শেয়ার্ড লজিক: Admin Finance module এবং Trainer Portal দুটোই এই ফাংশনটি call করে।
+ * window.MOCK_TRANSACTIONS সবসময় একই shared array — তাই Admin এন্ট্রি করলে
+ * Trainer Portal সাথে সাথে নতুন ডেটা দেখায়।
+ */
+window.calculateTrainerEarnings = function(trainerId, month) {
+    const txns = window.MOCK_TRANSACTIONS || [];
+    const relevant = txns.filter(t =>
+        t.trainerId === trainerId &&
+        t.type === 'income' &&
+        t.status === 'paid' &&
+        (!month || t.date.startsWith(month))
+    );
+
+    let totalRevenue = 0;
+    let totalCommission = 0;
+    const categoryMap = {};
+
+    relevant.forEach(t => {
+        const catKey = (t.category || '').toLowerCase();
+        const rate = window.COMMISSION_RULES[catKey] || 0;
+        const commission = t.amount * rate;
+
+        totalRevenue += t.amount;
+        totalCommission += commission;
+
+        if (!categoryMap[catKey]) {
+            categoryMap[catKey] = { category: t.category, revenue: 0, commission: 0, rate };
+        }
+        categoryMap[catKey].revenue += t.amount;
+        categoryMap[catKey].commission += commission;
+    });
+
+    const breakdown = Object.values(categoryMap);
+    return { totalRevenue, totalCommission, breakdown };
+};
+
+// localStorage থেকে পূর্বে সেভ করা transactions লোড করা
+const _savedTxns = localStorage.getItem('RENEW_TRANSACTIONS_DB');
+if (_savedTxns) {
+    try {
+        const parsed = JSON.parse(_savedTxns);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            // merge: localStorage entries আগে, তারপর mock entries (duplicate id বাদে)
+            const existingIds = new Set(parsed.map(t => t.id));
+            const merged = [...parsed, ...(window.MOCK_TRANSACTIONS || []).filter(t => !existingIds.has(t.id))];
+            window.MOCK_TRANSACTIONS = merged;
+        }
+    } catch(e) { /* ignore parse errors */ }
+}

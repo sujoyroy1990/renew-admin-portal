@@ -262,6 +262,7 @@ function renderTrainerTargets() {
                 const target = window.TRAINER_TARGETS[t.id] || 0;
                 const sales = calculateTrainerSales(t.id);
                 const pct = target > 0 ? Math.min(Math.round((sales.totalRevenue / target) * 100), 100) : 0;
+                const commission = sales.totalCommission || 0;
                 return `
                     <div class="space-y-1.5">
                         <div class="flex justify-between text-xs">
@@ -271,6 +272,10 @@ function renderTrainerTargets() {
                         <div class="w-full bg-black/50 h-2.5 rounded-full border border-gray-800 overflow-hidden relative flex items-center">
                             <div class="bg-gradient-to-r from-orange-500 to-green-500 h-full rounded-full" style="width: ${pct}%"></div>
                             <span class="absolute right-2 text-[9px] font-bold font-mono text-gray-400">${pct}%</span>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-gray-500">
+                            <span>Commission Earned:</span>
+                            <span class="text-green-400 font-mono font-bold">₹${commission.toLocaleString('en-IN', {maximumFractionDigits:0})}</span>
                         </div>
                     </div>
                 `;
@@ -343,13 +348,24 @@ function renderPendingDuesPanel() {
     `;
 }
 
+// calculateTrainerSales — Shared engine (window.calculateTrainerEarnings) কে delegate করে
+// এই ফাংশনটি finance.js ও trainer_portal.js উভয় জায়গা থেকে কাজ করে
 function calculateTrainerSales(trainerId) {
+    // shared engine available হলে সেটি ব্যবহার করব
+    if (typeof window.calculateTrainerEarnings === 'function') {
+        const result = window.calculateTrainerEarnings(trainerId, null);
+        const ptSales = (result.breakdown.find(b => b.category.toLowerCase() === 'pt') || {}).revenue || 0;
+        const dietPlanSales = (result.breakdown.find(b => b.category.toLowerCase() === 'diet plan') || {}).revenue || 0;
+        const supplementSales = (result.breakdown.find(b => b.category.toLowerCase() === 'supplement') || {}).revenue || 0;
+        return { ptSales, dietPlanSales, supplementSales, totalRevenue: result.totalRevenue, totalCommission: result.totalCommission };
+    }
+    // Fallback (shared engine আসার আগে)
     const txns = window.MOCK_TRANSACTIONS || [];
     const trainerIncomes = txns.filter(t => t.trainerId === trainerId && t.type === 'income' && t.status === 'paid');
     const ptSales = trainerIncomes.filter(t => t.category.toLowerCase() === 'pt').reduce((s,t)=>s+t.amount, 0);
     const dietPlanSales = trainerIncomes.filter(t => t.category.toLowerCase() === 'diet plan').reduce((s,t)=>s+t.amount, 0);
     const supplementSales = trainerIncomes.filter(t => t.category.toLowerCase() === 'supplement').reduce((s,t)=>s+t.amount, 0);
-    return { ptSales, dietPlanSales, supplementSales, totalRevenue: ptSales + dietPlanSales + supplementSales };
+    return { ptSales, dietPlanSales, supplementSales, totalRevenue: ptSales + dietPlanSales + supplementSales, totalCommission: 0 };
 }
 
 function renderAIAnalysisReport() {
@@ -812,6 +828,19 @@ window.submitTransaction = function() {
         id: `TXN-${String(window.MOCK_TRANSACTIONS.length + 1).padStart(3, '0')}`,
         type: selectedFormType, category: category, amount: amount, date: formattedDate, status: "paid", mode: mode, description: finalDesc, trainerId: trainerId
     });
+
+    // ===== REAL-TIME SYNC: localStorage + Trainer Portal Broadcast =====
+    // ১. localStorage-এ সম্পূর্ণ transactions array সেভ করা হচ্ছে
+    try { localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS)); } catch(e) {}
+
+    // ২. Trainer portal-কে নতুন data দেখানোর জন্য custom event dispatch করা হচ্ছে
+    //    যদি trainer portal খোলা থাকে, তবে সে সাথে সাথে নতুন revenue দেখতে পাবে
+    if (trainerId) {
+        window.dispatchEvent(new CustomEvent('trainerDataUpdated', {
+            detail: { trainerId, category, amount, date: formattedDate }
+        }));
+    }
+    // ===== END SYNC =====
 
     currentFinanceTab = 'all'; financeSearchQuery = '';
     const searchInput = document.getElementById('finance-search'); if (searchInput) searchInput.value = '';
