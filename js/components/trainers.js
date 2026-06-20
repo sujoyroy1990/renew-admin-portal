@@ -76,9 +76,14 @@ function renderTrainersPage() {
 
     container.innerHTML = trainers.map(t => {
         const hasLeft = t.todayAttendance.checkOut !== null;
-        const attendanceBadge = hasLeft
-            ? `<span class="text-[10px] bg-gray-500/10 text-gray-400 border border-gray-500/20 px-2 py-0.5 rounded-full font-bold uppercase">Shift Ended</span>`
-            : '';
+        let statusBadge = '';
+        if (t.status === 'blocked') {
+            statusBadge = `<span class="text-[10px] bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Blocked</span>`;
+        } else if (hasLeft) {
+            statusBadge = `<span class="text-[10px] bg-gray-500/10 text-gray-400 border border-gray-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Shift Ended</span>`;
+        } else {
+            statusBadge = `<span class="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Active</span>`;
+        }
 
         const stars = '★'.repeat(Math.round(t.kpis.satisfaction)) + '☆'.repeat(5 - Math.round(t.kpis.satisfaction));
         const address = t.address || "Birati, Kolkata";
@@ -99,7 +104,7 @@ function renderTrainersPage() {
                         <div>
                             <div class="flex items-center space-x-2">
                                 <h3 class="text-lg font-bold text-white tracking-wide">${t.name}</h3>
-                                ${attendanceBadge}
+                                ${statusBadge}
                             </div>
                             <p class="text-xs text-gray-500 font-mono mt-0.5">${t.email} | ${t.phone}</p>
                         </div>
@@ -170,6 +175,10 @@ function renderTrainersPage() {
                     <button onclick="openTrainerActionModal('${t.id}', 'message')" class="flex-1 bg-black/40 hover:bg-black border border-gray-800 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center space-x-1.5 transition-colors"><i class="ph ph-chat-text text-blue-400"></i><span>Message</span></button>
                     <button onclick="openTrainerActionModal('${t.id}', 'task')" class="flex-1 bg-black/40 hover:bg-black border border-gray-800 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center space-x-1.5 transition-colors"><i class="ph ph-clipboard-text text-amber-400"></i><span>Assign Task</span></button>
                     <button onclick="openTrainerActionModal('${t.id}', 'notice')" class="flex-1 bg-black/40 hover:bg-black border border-gray-800 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center space-x-1.5 transition-colors"><i class="ph ph-note text-purple-400"></i><span>Send Notice</span></button>
+                    <button onclick="window.toggleTrainerStatus('${t.id}')" class="flex-1 bg-black/40 hover:bg-brandRed/20 hover:text-white border border-gray-800 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center space-x-1.5 transition-colors" title="${t.status === 'blocked' ? 'Unblock Access' : 'Block Access'}">
+                        <i class="ph ${t.status === 'blocked' ? 'ph-lock-open text-green-400' : 'ph-lock text-red-500'}"></i>
+                        <span>${t.status === 'blocked' ? 'Unblock' : 'Block'}</span>
+                    </button>
                 </div>
             </div>
         `;
@@ -355,6 +364,24 @@ window.submitTrainerRegistration = function () {
         return;
     }
 
+    // Check duplicate phone across all segments
+    const cleanPhone = num => num ? num.replace(/[^0-9]/g, '') : '';
+    const phoneMatch = (dbPhone, inputPhone) => {
+        if (!dbPhone || !inputPhone) return false;
+        const cleanDb = cleanPhone(dbPhone);
+        const cleanInput = cleanPhone(inputPhone);
+        if (cleanDb.length >= 10 && cleanInput.length >= 10) {
+            return cleanDb.slice(-10) === cleanInput.slice(-10);
+        }
+        return cleanDb === cleanInput;
+    };
+
+    if ((window.MOCK_TRAINERS || []).some(t => phoneMatch(t.phone, phone)) ||
+        (window.ADMINS_LIST || []).some(a => phoneMatch(a.phone, phone)) ||
+        (window.MOCK_MEMBERS || []).some(m => phoneMatch(m.phone, phone))) {
+        alert("Registration Failure: Phone number is already registered under another account.");
+        return;
+    }
     const newPending = {
         id: `req-${Date.now().toString().slice(-4)}`,
         name: name,
@@ -422,3 +449,28 @@ window.openTrainerActionModal = function (trainerId, actionType) {
     modal.classList.remove('hidden');
     setTimeout(() => modal.classList.remove('opacity-0'), 10);
 };
+
+// =========================================================================
+// 🔒 TRAINER BLOCK/ACCESS CONTROL ENGINE
+// =========================================================================
+window.toggleTrainerStatus = function(trainerId) {
+    const trainers = window.MOCK_TRAINERS || [];
+    const trainer = trainers.find(t => t.id === trainerId);
+    if (!trainer) return;
+
+    if (trainer.status === 'blocked') {
+        trainer.status = 'active';
+        alert(`Trainer "${trainer.name}" has been unblocked successfully.`);
+    } else {
+        trainer.status = 'blocked';
+        alert(`Trainer "${trainer.name}" has been blocked. They will no longer be able to log in to the trainer portal.`);
+    }
+
+    try {
+        localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(trainers));
+    } catch (e) {
+        console.error("Failed to persist trainers status", e);
+    }
+
+    renderTrainersPage();
+};

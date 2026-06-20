@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>R.E.N.E.W Admin Portal</title>
+    <meta name="description" content="R.E.N.E.W Admin Portal — Manage members, trainers, finance, inventory and more for your gym.">
     
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -14,6 +20,9 @@
                         brandRed: '#FF0033',
                         darkBg: '#121212',
                         darkSurface: '#1E1E1E',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui'],
                     }
                 }
             }
@@ -26,8 +35,8 @@
 </head>
 <body class="bg-darkBg text-white h-screen flex overflow-hidden font-sans" id="body">
 
-    <!-- Hamburger Menu Button (Mobile Only) -->
-    <button id="menu-toggle" class="hidden md:hidden fixed top-4 left-4 z-50 p-2 bg-darkSurface rounded-lg text-brandRed hover:bg-darkSurface/80 transition">
+    <!-- Hamburger Menu Button (Mobile Only) — fixed: was 'hidden md:hidden', now 'flex md:hidden' -->
+    <button id="menu-toggle" class="flex md:hidden fixed top-4 left-4 z-50 p-2 bg-darkSurface rounded-lg text-brandRed hover:bg-darkSurface/80 transition">
         <i class="ph ph-list text-2xl"></i>
     </button>
 
@@ -41,6 +50,7 @@
             </div>
         </div>
 
+        <!-- All nav buttons now have consistent 'nav-btn' class for active state support -->
         <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1" id="sidebar-nav">
             <button onclick="navigateTo('dashboard')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors active-nav">
                 <i class="ph ph-squares-four text-xl"></i>
@@ -62,30 +72,35 @@
                 <span class="font-medium">Finance</span>
             </button>
             
-            <button onclick="navigateTo('crm')" class="flex items-center space-x-3 w-full p-3 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white">
+            <button onclick="navigateTo('crm')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors">
                <i class="ph ph-funnel text-xl"></i>
                <span class="font-medium text-sm">CRM Pipeline</span>
             </button>
-            <button onclick="navigateTo('inventory')" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/[0.02] transition-all group">
-               <i class="ph ph-storefront text-xl group-hover:text-brandRed transition-colors"></i>
+
+            <button onclick="navigateTo('inventory')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors">
+               <i class="ph ph-storefront text-xl"></i>
                <span class="font-medium text-sm tracking-wide">Gym Store Inventory</span>
             </button>
-            <button onclick="navigateTo('reports')" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors">
+
+            <button onclick="navigateTo('reports')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors">
                <i class="ph ph-chart-polar text-xl"></i>
-               <span>Report Generate</span>
+               <span class="font-medium">Report Generate</span>
             </button>
-            <button onclick="navigateTo('fighter-portal')" class="flex items-center space-x-3 w-full p-3 rounded-xl transition-all duration-200 text-gray-400 hover:bg-white/5 hover:text-white group relative overflow-hidden">
-                <i class="ph ph-user-focus text-xl transition-colors group-hover:text-brandRed relative z-10"></i>
-                <span class="font-medium text-sm tracking-wide relative z-10">Fighter Portal (Demo)</span>
+
+            <button onclick="navigateTo('fighter-portal')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors">
+                <i class="ph ph-user-focus text-xl"></i>
+                <span class="font-medium text-sm tracking-wide">Fighter Portal (Demo)</span>
             </button>
-            <button onclick="navigateTo('trainer-portal')" class="flex items-center space-x-3 w-full p-3 rounded-xl transition-all duration-200 text-gray-400 hover:bg-white/5 hover:text-white group relative overflow-hidden">
-                <i class="ph ph-barbell text-xl transition-colors group-hover:text-brandRed relative z-10"></i>
-                <span class="font-medium text-sm tracking-wide relative z-10">Trainer Portal (Demo)</span>
+
+            <button onclick="navigateTo('trainer-portal')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-black/30 hover:text-brandRed transition-colors">
+                <i class="ph ph-barbell text-xl"></i>
+                <span class="font-medium text-sm tracking-wide">Trainer Portal (Demo)</span>
             </button>
         </nav>
 
         <div class="p-4 border-t border-gray-800">
-            <button class="w-full flex items-center space-x-3 px-4 py-2 rounded-lg text-gray-400 hover:bg-red-500/10 hover:text-red-500 transition-colors">
+            <!-- Resolved merge conflict: keep clearSession onclick -->
+            <button onclick="window.clearSession()" class="w-full flex items-center space-x-3 px-4 py-2 rounded-lg text-gray-400 hover:bg-red-500/10 hover:text-red-500 transition-colors">
                 <i class="ph ph-sign-out text-xl"></i>
                 <span class="font-medium">Logout</span>
             </button>
@@ -95,7 +110,8 @@
     <main class="flex-1 flex flex-col h-screen overflow-hidden w-full">
         
         <header class="h-16 bg-darkSurface/80 backdrop-blur-md border-b border-gray-800 flex items-center justify-between px-4 md:px-8 z-10">
-            <h2 id="page-title" class="text-lg md:text-xl font-semibold tracking-wide">Dashboard</h2>
+            <!-- Added pl-12 md:pl-0 for mobile hamburger clearance -->
+            <h2 id="page-title" class="text-lg md:text-xl font-semibold tracking-wide pl-12 md:pl-0">Dashboard</h2>
             
             <div class="flex items-center space-x-3 md:space-x-4">
                 <button class="text-gray-400 hover:text-white transition relative">
@@ -123,6 +139,8 @@
     <script src="js/components/fighter_portal.js"></script>
     <script src="js/components/trainer_auth.js"></script> 
     <script src="js/components/trainer_portal.js?v=20260619-2"></script>
+    <!-- Resolved merge conflict: unified_auth.js is required for auth system -->
+    <script src="js/components/unified_auth.js"></script>
     
     <script src="js/app.js"></script>
 </body>

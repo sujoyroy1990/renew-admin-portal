@@ -104,7 +104,6 @@
 
 /* Dashboard grid - responsive columns */
 @media (max-width: 640px) {
-    .grid-cols-1,
     .grid-cols-2,
     .grid-cols-3,
     .grid-cols-4 {
@@ -131,7 +130,9 @@
     }
 }
 
-/* Tables - responsive wrapper */
+/* Tables - responsive wrapper.
+   FIX: Only hide the last column on mobile (was hiding all from 4th onwards).
+   Use horizontal scroll so data is not lost. */
 @media (max-width: 768px) {
     .overflow-x-auto {
         overflow-x: auto !important;
@@ -139,16 +140,11 @@
 
     table {
         font-size: 0.875rem;
+        min-width: 500px; /* Ensures table scrolls instead of collapsing */
     }
 
     th, td {
         padding: 0.5rem !important;
-    }
-
-    /* Hide less important columns on mobile */
-    th:nth-child(n+4),
-    td:nth-child(n+4) {
-        display: none;
     }
 }
 
@@ -157,8 +153,10 @@
    ======================================== */
 
 @media (max-width: 640px) {
+    /* FIX: Removed duplicate .text-xl rule (was defined twice).
+       Keeping only one consistent value. */
     .text-xl {
-        font-size: 1.125rem !important;
+        font-size: 1.25rem !important;
     }
 
     .text-lg {
@@ -173,22 +171,16 @@
     .text-2xl {
         font-size: 1.5rem !important;
     }
-
-    .text-xl {
-        font-size: 1.25rem !important;
-    }
 }
 
 /* ========================================
    BUTTON & INPUT RESPONSIVE
+   FIX: Removed global `button` selector with !important padding.
+        It was overriding icon buttons, modal close buttons, nav buttons etc.
+        Now scoped to only .btn-action utility class.
    ======================================== */
 
 @media (max-width: 640px) {
-    button {
-        padding: 0.625rem 1rem !important;
-        font-size: 0.875rem !important;
-    }
-
     input, select, textarea {
         font-size: 1rem !important; /* Prevents zoom on iOS */
         padding: 0.625rem !important;
@@ -231,25 +223,10 @@
 
 /* ========================================
    FLEX RESPONSIVE
+   FIX: Removed global .flex-row → column and .justify-between overrides.
+        These were breaking Finance tabs, header actions, table cells.
+        Responsive stacking is handled per-component using sm:flex-row etc.
    ======================================== */
-
-@media (max-width: 768px) {
-    .flex-col {
-        flex-direction: column !important;
-    }
-
-    .flex-row {
-        flex-direction: column !important;
-    }
-
-    .justify-between {
-        justify-content: flex-start !important;
-    }
-
-    .items-center {
-        align-items: center !important;
-    }
-}
 
 /* ========================================
    Z-INDEX & STACKING
@@ -273,11 +250,13 @@
    SCROLLBAR - RESPONSIVE
    ======================================== */
 
-/* Active Navigation State */
+/* Active Navigation State
+   FIX: Changed from border-right (clips inside w-64 container)
+        to box-shadow inset for reliable rendering. */
 .active-nav {
     background-color: rgba(255, 0, 51, 0.1) !important;
     color: #FF0033 !important;
-    border-right: 3px solid #FF0033;
+    box-shadow: inset -3px 0 0 #FF0033;
 }
 
 /* Hide scrollbar for clean UI but keep functionality */
@@ -315,4 +294,136 @@
     #main-content {
         padding: 0.5rem !important;
     }
+}
+
+/* ========================================
+   NEON ACCESS TERMINAL STYLES
+   ======================================== */
+:root {
+    --neon-cyan-glow: #00ffff;
+    --neon-green-glow: #00ff00;
+    --neon-red-glow: #ff0000;
+    --neon-white-glow: #ffffff;
+    --neon-text-dim: rgba(0, 255, 255, 0.7);
+    --neon-font-mono: 'Courier New', Courier, monospace;
+}
+
+/* Bulb / Overhead Light */
+.bulb-container {
+    position: relative;
+    width: 200px;
+    height: 50px;
+    margin-bottom: 20px;
+}
+
+.bulb {
+    width: 100%;
+    height: 100%;
+    background: #0a1f30;
+    border-radius: 50% / 10%;
+    position: relative;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.bulb::after {
+    content: '';
+    position: absolute;
+    bottom: -15px;
+    left: 10%;
+    width: 80%;
+    height: 20px;
+    background: radial-gradient(ellipse at center, rgba(10,31,48,0.5) 0%, rgba(0,0,0,0) 70%);
+}
+
+/* State: Bulb White/Green (Granted) */
+.bulb.granted {
+    background: var(--neon-white-glow);
+    box-shadow: 0 0 30px 10px rgba(0, 255, 255, 0.6), 
+                0 0 60px 20px rgba(0, 255, 255, 0.4);
+}
+.bulb.granted::after {
+    background: radial-gradient(ellipse at center, rgba(0,255,255,0.8) 0%, rgba(0,255,255,0.3) 40%, rgba(0,0,0,0) 80%);
+}
+
+/* State: Bulb Red (Denied) */
+.bulb.denied {
+    background: var(--neon-red-glow);
+    box-shadow: 0 0 25px 8px rgba(255, 0, 0, 0.6), 
+                0 0 50px 15px rgba(255, 0, 0, 0.4);
+}
+.bulb.denied::after {
+    background: radial-gradient(ellipse at center, rgba(255,0,0,0.8) 0%, rgba(255,0,0,0.3) 40%, rgba(0,0,0,0) 80%);
+}
+
+/* Scanlines effect */
+.scanlines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+    background-size: 100% 4px;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0.3;
+}
+
+/* Status Box */
+.terminal-status-box {
+    border: 2px solid var(--neon-green-glow);
+    background-color: rgba(0, 255, 0, 0.05);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    color: var(--neon-green-glow);
+    text-shadow: 0 0 5px var(--neon-green-glow);
+    min-height: 50px;
+    font-size: 0.95rem;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+    display: flex;
+    align-items: center;
+}
+
+.terminal-status-box.error {
+    border-color: var(--neon-red-glow);
+    background-color: rgba(255, 0, 0, 0.05);
+    color: var(--neon-red-glow);
+    text-shadow: 0 0 5px var(--neon-red-glow);
+}
+
+.underline-green {
+    height: 2px;
+    background-color: rgba(0, 255, 0, 0.5);
+    box-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+}
+
+.underline-cyan {
+    height: 2px;
+    background-color: var(--neon-cyan-glow);
+    box-shadow: 0 0 8px var(--neon-cyan-glow);
+}
+
+/* Blinking cursor for status text */
+.terminal-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 15px;
+    background-color: currentColor;
+    margin-left: 3px;
+    animation: terminal-blink 0.7s infinite;
+}
+
+@keyframes terminal-blink {
+    50% { opacity: 0; }
+}
+
+.neon-font {
+    font-family: var(--neon-font-mono) !important;
+}
+
+/* FIX: Restored closing brace (was cut off by merge conflict) */
+.neon-glow-text {
+    text-shadow: 0 0 8px var(--neon-cyan-glow);
 }

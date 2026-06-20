@@ -2,9 +2,89 @@
 // R.E.N.E.W ADMIN PORTAL — MAIN APPLICATION ROUTER & CONTROLLER (app.js)
 // =========================================================================
 
+window.loggedInRole = null; // 'admin', 'trainer', 'fighter'
+
+window.checkAuthAndNavigate = function() {
+    const sidebar = document.getElementById('sidebar');
+    const header = document.querySelector('main header');
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) return;
+
+    const role = localStorage.getItem('RENEW_LOGGED_IN_ROLE');
+    const userId = localStorage.getItem('RENEW_LOGGED_IN_USER_ID');
+
+    if (role && userId) {
+        window.loggedInRole = role;
+        
+        if (role === 'admin') {
+            // Restore Admin interface
+            if (sidebar) {
+                sidebar.classList.remove('hidden');
+                sidebar.classList.remove('-translate-x-full');
+                sidebar.classList.add('md:translate-x-0');
+            }
+            if (header) header.classList.remove('hidden');
+            
+            const lastView = localStorage.getItem('RENEW_LAST_VIEW') || 'dashboard';
+            navigateTo(lastView);
+        } else if (role === 'trainer') {
+            // Restore Trainer interface (No sidebar or admin header)
+            if (sidebar) sidebar.classList.add('hidden');
+            if (header) header.classList.add('hidden');
+            
+            const trainer = window.MOCK_TRAINERS.find(t => t.id === userId);
+            if (trainer) {
+                window.loggedInTrainer = trainer;
+                navigateTo('trainer-portal');
+            } else {
+                window.clearSession();
+            }
+        } else if (role === 'fighter') {
+            // Restore Fighter interface (No sidebar or admin header)
+            if (sidebar) sidebar.classList.add('hidden');
+            if (header) header.classList.add('hidden');
+            
+            const fighter = window.MOCK_MEMBERS.find(m => m.id === userId);
+            if (fighter) {
+                window.loggedInFighter = fighter;
+                navigateTo('fighter-portal');
+            } else {
+                window.clearSession();
+            }
+        }
+    } else {
+        // Render unified auth page
+        if (sidebar) sidebar.classList.add('hidden');
+        if (header) header.classList.add('hidden');
+        
+        mainContent.innerHTML = getUnifiedLoginView();
+    }
+};
+
+window.clearSession = function() {
+    localStorage.removeItem('RENEW_LOGGED_IN_ROLE');
+    localStorage.removeItem('RENEW_LOGGED_IN_USER_ID');
+    window.loggedInRole = null;
+    window.loggedInTrainer = null;
+    window.loggedInFighter = null;
+    window.checkAuthAndNavigate();
+};
+
 function navigateTo(viewId) {
     const mainContent = document.getElementById('main-content');
     if (!mainContent) return;
+
+    // Check if navigation is authorized. If not logged in, force check.
+    const role = localStorage.getItem('RENEW_LOGGED_IN_ROLE');
+    if (!role) {
+        window.checkAuthAndNavigate();
+        return;
+    }
+
+    // Save last view for Admin persistence
+    if (role === 'admin' && viewId !== 'trainer-portal' && viewId !== 'fighter-portal') {
+        localStorage.setItem('RENEW_LAST_VIEW', viewId);
+    }
 
     // ১. সাইডবার একটিভ ক্লাস ম্যানেজমেন্ট
     const navButtons = document.querySelectorAll('#sidebar-nav button');
@@ -14,12 +94,23 @@ function navigateTo(viewId) {
     const currentButton = Array.from(navButtons).find(btn => btn.getAttribute('onclick')?.includes(`'${viewId}'`));
     if (currentButton) currentButton.classList.add('active-nav');
 
-    // ২. পেজ টাইটেল ডাইনামিকালি সেট করা
+    // ২. পেজ টাইটেল ডাইনামিকালি সেট করা — Fixed: proper names for all routes
     const pageTitle = document.getElementById('page-title');
     if (pageTitle) {
-        pageTitle.textContent = viewId === 'crm' ? 'CRM & Leads' : 
-                                viewId === 'registration' ? 'New Member Admission' : 
-                                viewId.charAt(0).toUpperCase() + viewId.slice(1);
+        const titleMap = {
+            'dashboard':      'Dashboard',
+            'members':        'Members',
+            'trainers':       'Trainers',
+            'finance':        'Finance',
+            'crm':            'CRM & Leads',
+            'inventory':      'Gym Store Inventory',
+            'reports':        'Report Generate',
+            'registration':   'New Member Admission',
+            'fighter-portal': 'Fighter Portal',
+            'trainer-portal': 'Trainer Portal',
+            'trainer-signup': 'Trainer Sign Up',
+        };
+        pageTitle.textContent = titleMap[viewId] || viewId.charAt(0).toUpperCase() + viewId.slice(1).replace(/-/g, ' ');
     }
 
     // ৩. রাউটিং ও ভিউ ইনজেকশন
@@ -78,7 +169,7 @@ function navigateTo(viewId) {
     }
 }
 
-// ডিফল্টভাবে ড্যাশবোর্ড পেজটি লোড করা
+// ডিফল্টভাবে লগইন এবং অথ চেক রান করা
 document.addEventListener('DOMContentLoaded', () => { 
-    navigateTo('dashboard'); 
+    window.checkAuthAndNavigate(); 
 });

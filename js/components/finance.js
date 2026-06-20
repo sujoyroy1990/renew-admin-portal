@@ -509,41 +509,6 @@ window.deleteTransaction = function(txnId) {
         if (index !== -1) { window.MOCK_TRANSACTIONS.splice(index, 1); alert(`Purged successfully.`); renderFinancePage(); }
     } else if (inputPassword !== null) { alert("❌ ACCESS DENIED!"); }
 };
-// অ্যাডমিশন ফি আপডেট করার জন্য ডাইনামিক ফাংশন
-window.openFeesConfigModal = function() {
-    const modal = document.getElementById('transaction-modal');
-    if (!modal) return;
-    modal.innerHTML = `
-        <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[360px] shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
-            <div class="bg-darkBg/95 rounded-[14px] p-5 flex flex-col relative text-xs">
-                <button onclick="window.closeTransactionModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg z-50"><i class="ph ph-x"></i></button>
-                <div class="flex items-center space-x-2 border-b border-gray-800 pb-3 mb-4"><i class="ph ph-sliders text-xl text-purple-400"></i><h3 class="font-bold text-white text-sm">Configure Base Gym Fees</h3></div>
-                <div class="space-y-3 text-left">
-                    <div>
-                        <label class="text-gray-400 text-[10px] uppercase font-bold block mb-1">Admission Fee (System-Wide)</label>
-                        <div class="relative"><span class="absolute left-3 top-2 text-gray-600">₹</span>
-                        <input type="number" id="fee-config-admission" value="${window.GYM_FEES.admissionFee}" class="w-full bg-black/50 border border-gray-800 rounded-lg pl-7 pr-3 py-1.5 font-mono text-gray-200 focus:outline-none"></div>
-                    </div>
-                </div>
-                <button onclick="window.submitFeesConfig()" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2.5 rounded-lg mt-5 uppercase shadow">Save Configuration</button>
-            </div>
-        </div>
-    `;
-    modal.classList.remove('hidden');
-    setTimeout(() => { modal.classList.remove('opacity-0'); modal.firstElementChild.classList.add('scale-100'); }, 10);
-};
-
-window.submitFeesConfig = function() {
-    const newAdmissionFee = document.getElementById('fee-config-admission').value;
-    window.updateAdmissionFee(newAdmissionFee);
-    window.closeTransactionModal();
-    renderFinancePage();
-};
-
-window.updateAdmissionFee = function(newFee) {
-    window.GYM_FEES.admissionFee = parseFloat(newFee);
-    alert("Admission fee updated to ₹" + newFee + " system-wide!");
-};
 window.openFeesConfigModal = function() {
     const modal = document.getElementById('transaction-modal');
     if (!modal) return;

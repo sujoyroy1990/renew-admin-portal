@@ -87,6 +87,24 @@ window.submitNewRegistration = function() {
 
     if (!name || !phone) return alert("Please fill all fields!");
 
+    // Check duplicate phone
+    const cleanPhone = num => num ? num.replace(/[^0-9]/g, '') : '';
+    const phoneMatch = (dbPhone, inputPhone) => {
+        if (!dbPhone || !inputPhone) return false;
+        const cleanDb = cleanPhone(dbPhone);
+        const cleanInput = cleanPhone(inputPhone);
+        if (cleanDb.length >= 10 && cleanInput.length >= 10) {
+            return cleanDb.slice(-10) === cleanInput.slice(-10);
+        }
+        return cleanDb === cleanInput;
+    };
+    
+    if ((window.MOCK_MEMBERS || []).some(m => phoneMatch(m.phone, phone)) ||
+        (window.MOCK_TRAINERS || []).some(t => phoneMatch(t.phone, phone)) ||
+        (window.ADMINS_LIST || []).some(a => phoneMatch(a.phone, phone))) {
+        alert("Registration Failure: Phone number is already registered under another account.");
+        return;
+    }
     // মেম্বার অবজেক্ট
     const newMember = {
         id: `m-${Date.now().toString().slice(-4)}`,
@@ -133,6 +151,10 @@ window.submitNewRegistration = function() {
         portalLocked: true
     });
 
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+        localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS));
+    } catch(e) {}
     alert(`✅ Registration Successful!\nTotal Due: ₹${totalDue} (Admission: ₹${ADMISSION_FEE} + Plan: ₹${planFee}).`);
     navigateTo('finance'); 
 };

@@ -8,9 +8,11 @@ const MOCK_TRAINERS = [
         photoUrl: "https://images.unsplash.com/photo-1567013127542-490d757e51fc?w=150",
         email: "rahul@renew.com",
         phone: "9876543210",
+        password: "password123",
         address: "Birati, Kolkata",
         joiningDate: "2025-01-10",
         dob: "1995-05-15",
+        status: "active",
         assignedFighterIds: ["m1", "m2"],
         kpis: { totalAssigned: 2, retentionRate: 95, satisfaction: 4.8, attendanceRate: 98 },
         revenue: { ptSales: 15000, dietPlanSales: 3000, supplementSales: 5000, totalRevenue: 23000 },
@@ -23,9 +25,11 @@ const MOCK_TRAINERS = [
         photoUrl: "https://images.unsplash.com/photo-1605296867304-46d5465a25f1?w=150",
         email: "vikram@renew.com",
         phone: "9876543211",
+        password: "password123",
         address: "Dum Dum, Kolkata",
         joiningDate: "2025-03-22",
         dob: "1992-08-20",
+        status: "active",
         assignedFighterIds: ["m3"],
         kpis: { totalAssigned: 1, retentionRate: 88, satisfaction: 4.2, attendanceRate: 92 },
         revenue: { ptSales: 8000, dietPlanSales: 1500, supplementSales: 2000, totalRevenue: 11500 },
@@ -45,6 +49,28 @@ const MOCK_MEMBERS = [
 ];
 window.MOCK_MEMBERS = MOCK_MEMBERS;
 window.MOCK_TRAINERS = MOCK_TRAINERS;
+
+// MOCK_MEMBERS_DB থেকে পূর্বে সেভ করা members ডাটা লোড করা
+const _savedMembers = localStorage.getItem('MOCK_MEMBERS_DB');
+if (_savedMembers) {
+    try {
+        const parsed = JSON.parse(_savedMembers);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            window.MOCK_MEMBERS = parsed;
+        }
+    } catch(e) {}
+}
+
+// RENEW_TRAINERS_DB থেকে পূর্বে সেভ করা trainers ডাটা লোড করা
+const _savedTrainers = localStorage.getItem('RENEW_TRAINERS_DB');
+if (_savedTrainers) {
+    try {
+        const parsed = JSON.parse(_savedTrainers);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            window.MOCK_TRAINERS = parsed;
+        }
+    } catch(e) {}
+}
 
 // ৩. ফিন্যান্স বা ক্যাশ ফ্লো ডামি ডেটা (Mock Transactions)
 const MOCK_TRANSACTIONS = [
@@ -139,4 +165,67 @@ if (_savedTxns) {
             window.MOCK_TRANSACTIONS = merged;
         }
     } catch(e) { /* ignore parse errors */ }
+}
+
+// ৭. ট্রেইনার ও মেম্বারদের চেক-ইন/আউট হিস্ট্রি ও ডেইলি টোকেন জেনারেটর
+window.generateDailyToken = function() {
+    const today = new Date();
+    return `RNW-${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}-9932`; 
+};
+
+// ট্রেইনারদের চেক-ইন/আউট হিস্ট্রি লগ
+window.TRAINER_ATTENDANCE_LOGS = [
+    { trainerId: "t1", trainerName: "Rahul Sharma", type: "check-in", date: "2026-06-18", time: "06:00 AM" },
+    { trainerId: "t1", trainerName: "Rahul Sharma", type: "check-out", date: "2026-06-18", time: "11:00 AM" },
+    { trainerId: "t2", trainerName: "Vikram Das", type: "check-in", date: "2026-06-18", time: "07:15 AM" },
+    { trainerId: "t2", trainerName: "Vikram Das", type: "check-out", date: "2026-06-18", time: "12:30 PM" },
+    { trainerId: "t1", trainerName: "Rahul Sharma", type: "check-in", date: "2026-06-19", time: "06:00 AM" },
+    { trainerId: "t1", trainerName: "Rahul Sharma", type: "check-out", date: "2026-06-19", time: "11:00 AM" }
+];
+
+// মেম্বারদের চেক-ইন/আউট হিস্ট্রি লগ
+window.MEMBER_ATTENDANCE_LOGS = [
+    { memberId: "m-001", memberName: "Subham Das", type: "check-in", date: "2026-06-18", time: "08:30 AM", method: "QR Scan" },
+    { memberId: "m-001", memberName: "Subham Das", type: "check-out", date: "2026-06-18", time: "10:15 AM", method: "QR Scan" },
+    { memberId: "m-003", memberName: "Sourav Ganguly", type: "check-in", date: "2026-06-18", time: "07:15 AM", method: "Desk Scan" },
+    { memberId: "m-003", memberName: "Sourav Ganguly", type: "check-out", date: "2026-06-18", time: "09:00 AM", method: "Desk Scan" },
+    { memberId: "m-001", memberName: "Subham Das", type: "check-in", date: "2026-06-19", time: "08:30 AM", method: "Token PIN" }
+];
+
+// LocalStorage থেকে হিস্ট্রি রিস্টোর করা
+const _savedTrainerAttendance = localStorage.getItem('RENEW_TRAINER_ATTENDANCE_DB');
+if (_savedTrainerAttendance) {
+    try { window.TRAINER_ATTENDANCE_LOGS = JSON.parse(_savedTrainerAttendance); } catch(e) {}
+}
+const _savedMemberAttendance = localStorage.getItem('RENEW_MEMBER_ATTENDANCE_DB');
+if (_savedMemberAttendance) {
+    try { window.MEMBER_ATTENDANCE_LOGS = JSON.parse(_savedMemberAttendance); } catch(e) {}
+}
+
+// মেম্বারদের checkInHistory অবজেক্ট ইনিশিয়ালাইজ করা
+if (window.MOCK_MEMBERS) {
+    window.MOCK_MEMBERS.forEach(m => {
+        if (!m.checkInHistory) {
+            m.checkInHistory = window.MEMBER_ATTENDANCE_LOGS.filter(l => l.memberId === m.id).map(l => ({
+                type: l.type === 'check-in' ? 'in' : 'out',
+                date: l.date,
+                time: l.time,
+                method: l.method
+            }));
+        }
+    });
+}
+
+// ৮. এডমিনদের ডামি ও সেভ করা ডাটা লোড করা
+window.ADMINS_LIST = [
+    { id: "admin", name: "Super Admin", email: "admin@renew.com", phone: "9999999999", password: "admin" }
+];
+const _savedAdmins = localStorage.getItem('RENEW_ADMINS_DB');
+if (_savedAdmins) {
+    try {
+        const parsed = JSON.parse(_savedAdmins);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            window.ADMINS_LIST = parsed;
+        }
+    } catch(e) {}
 }

@@ -139,39 +139,6 @@ function renderMembersGrid() {
         `;
     }).join('');
 }
-// NEW LOGIC: The First Scan Engine Core Function
-window.simulateMemberScan = function(memberId) {
-    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
-    
-    // ১. চেক করুন মেম্বার পাওয়া যাচ্ছে কি না
-    if (!member) {
-        alert("Member not found in database!");
-        return;
-    }
-
-    // ২. বর্তমান সময় ও তারিখ
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
-    // ৩. স্ট্যাটাস আপডেট লজিক
-    member.checkedInToday = true; // এটিই মেইন ফ্ল্যাগ যা গ্রিডে সবুজ বাতি জ্বালাবে
-    member.lastCheckIn = `${todayStr} ${timeStr}`;
-
-    // ৪. যদি Pending First Scan হয়, তবেই অ্যাক্টিভ করুন
-    if (member.expiryDate === "Pending First Scan") {
-        const expiry = new Date();
-        expiry.setDate(expiry.getDate() + 30);
-        member.expiryDate = expiry.toISOString().slice(0, 10);
-        member.status = "active";
-    }
-
-    // ৫. ডাটা আপডেট হওয়ার পর ইন্টারফেস রিফ্রেশ করা
-    alert(`✅ Scan Successful for ${member.name} at ${timeStr}`);
-    
-    window.closeTransactionModal();
-    renderMembersPage(); // এই লাইনটি অত্যন্ত গুরুত্বপূর্ণ, এটি গ্রিড রিফ্রেশ করে
-    localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
-};
 window.simulateMemberScan = function(memberId) {
     const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
     if (!member) {
@@ -180,22 +147,62 @@ window.simulateMemberScan = function(memberId) {
     }
 
     const todayStr = new Date().toISOString().slice(0,10);
-    const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-    // ১. এক্সপ্লিকিটলি প্রপার্টি সেট করা (যাতে মিসিং না থাকে)
-    member.checkedInToday = true;
-    member.lastCheckIn = `${todayStr} ${timeStr}`;
+    if (member.checkedInToday) {
+        // Simulating Check-Out
+        member.checkedInToday = false;
+        member.lastCheckOut = `${todayStr} ${timeStr}`;
 
-    // ২. যদি প্রথমবার স্ক্যান হয়, তবে স্ট্যাটাস চেঞ্জ
-    if (member.expiryDate === "Pending First Scan" || member.status === 'inactive') {
-        const expiry = new Date();
-        expiry.setDate(expiry.getDate() + 30);
-        member.expiryDate = expiry.toISOString().slice(0,10);
-        member.status = "active";
+        if (!member.checkInHistory) member.checkInHistory = [];
+        member.checkInHistory.push({ type: 'out', date: todayStr, time: timeStr, method: "Desk Scan" });
+
+        if (!window.MEMBER_ATTENDANCE_LOGS) window.MEMBER_ATTENDANCE_LOGS = [];
+        window.MEMBER_ATTENDANCE_LOGS.push({
+            memberId: member.id,
+            memberName: member.name,
+            type: "check-out",
+            date: todayStr,
+            time: timeStr,
+            method: "Desk Scan"
+        });
+
+        alert(`🛑 Scan Out Successful for ${member.name} at ${timeStr}`);
+    } else {
+        // Simulating Check-In
+        member.checkedInToday = true;
+        member.lastCheckIn = `${todayStr} ${timeStr}`;
+        member.lastCheckOut = null; // Clear checkout time
+
+        if (member.expiryDate === "Pending First Scan" || member.status === 'inactive') {
+            const expiry = new Date();
+            expiry.setDate(expiry.getDate() + 30);
+            member.expiryDate = expiry.toISOString().slice(0,10);
+            member.status = "active";
+            alert(`🎉 FIRST CHECK-IN SUCCESSFUL!\nYour 30-Day billing cycle officially starts TODAY.`);
+        } else {
+            alert(`✅ Scan In Successful for ${member.name} at ${timeStr}`);
+        }
+
+        if (!member.checkInHistory) member.checkInHistory = [];
+        member.checkInHistory.push({ type: 'in', date: todayStr, time: timeStr, method: "Desk Scan" });
+
+        if (!window.MEMBER_ATTENDANCE_LOGS) window.MEMBER_ATTENDANCE_LOGS = [];
+        window.MEMBER_ATTENDANCE_LOGS.push({
+            memberId: member.id,
+            memberName: member.name,
+            type: "check-in",
+            date: todayStr,
+            time: timeStr,
+            method: "Desk Scan"
+        });
     }
 
-    // ৩. গ্রিড রিফ্রেশ
-    alert(`✅ Scan Successful for ${member.name}!`);
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+        localStorage.setItem('RENEW_MEMBER_ATTENDANCE_DB', JSON.stringify(window.MEMBER_ATTENDANCE_LOGS));
+    } catch(e) {}
+
     window.closeTransactionModal();
     renderMembersPage(); 
 };
@@ -349,6 +356,28 @@ window.openMemberProfile = function(memberId) {
         scanActionBtn = `<button onclick="window.simulateMemberScan('${member.id}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-extrabold py-2.5 rounded-xl mt-4 shadow-lg uppercase tracking-wider flex justify-center items-center transition-colors"><i class="ph ph-scan text-sm mr-1.5 animate-pulse"></i> Simulate Entrance Scan</button>`;
     }
 
+    // Diet Chart billing status and collection button
+    const getDietStatus = (m) => {
+        if (m.dietChartPaid) return { label: "PAID", class: "text-green-400" };
+        if (!m.registrationDate) return { label: "TRIAL ACTIVE", class: "text-blue-400" };
+        
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const regDate = new Date(m.registrationDate);
+        regDate.setHours(0,0,0,0);
+        
+        const diffTime = today - regDate;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        return diffDays <= 7 
+            ? { label: `TRIAL (${7 - diffDays}d left)`, class: "text-blue-400" }
+            : { label: "EXPIRED (GATED)", class: "text-red-500 animate-pulse font-bold" };
+    };
+    const dietStatus = getDietStatus(member);
+    let dietActionBtn = '';
+    if (!member.dietChartPaid) {
+        dietActionBtn = `<button onclick="window.collectDietChartPayment('${member.id}')" class="w-full bg-purple-600 hover:bg-purple-750 text-white text-[11px] font-extrabold py-2.5 rounded-xl mt-2 shadow-lg uppercase tracking-wider flex justify-center items-center transition-colors"><i class="ph ph-wallet text-sm mr-1.5"></i> Collect Diet Chart Fee (₹2,000)</button>`;
+    }
     modal.innerHTML = `
         <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[350px] shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
             <div class="bg-darkBg/95 rounded-[14px] p-6 flex flex-col relative items-center text-xs overflow-hidden">
@@ -382,6 +411,11 @@ window.openMemberProfile = function(memberId) {
                     </div>
 
                     <div class="flex justify-between items-center border-b border-gray-800/50 pb-1.5">
+                        <span class="text-gray-500 font-bold uppercase text-[9px]">Diet Chart Status</span>
+                        <span class="${dietStatus.class} font-bold font-mono text-[10px]">${dietStatus.label}</span>
+                    </div>
+
+                    <div class="flex justify-between items-center border-b border-gray-800/50 pb-1.5">
                         <span class="text-gray-500 font-bold uppercase text-[9px]">Expiry</span>
                         <span class="${member.status === 'lapsed' ? 'text-red-500 font-bold' : member.expiryDate === 'Pending First Scan' ? 'text-blue-400 font-bold animate-pulse' : 'text-white'} font-mono">${member.expiryDate}</span>
                     </div>
@@ -393,6 +427,7 @@ window.openMemberProfile = function(memberId) {
                 </div>
 
                 ${scanActionBtn}
+                ${dietActionBtn}
 
                 <div class="mt-6 p-2 bg-white rounded-xl shadow-lg z-10"><img src="${qrUrl}" class="w-32 h-32 rounded-lg" alt="QR"></div>
                 <p class="text-[8px] text-gray-500 mt-2 uppercase tracking-[0.2em]">Universal Data Access QR</p>
@@ -421,3 +456,38 @@ window.assignTrainerToMember = function(memberId, selectedTrainerId) {
     renderMembersPage();
     window.openMemberProfile(memberId);
 };
+
+window.collectDietChartPayment = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return;
+
+    member.dietChartPaid = true;
+    
+    // Register transaction
+    const dietFee = (window.GYM_FEES && window.GYM_FEES["diet plan"]) || 2000;
+    
+    if (!window.MOCK_TRANSACTIONS) window.MOCK_TRANSACTIONS = [];
+    window.MOCK_TRANSACTIONS.unshift({
+        id: `TXN-${Date.now().toString().slice(-4)}-DP`,
+        type: "income",
+        category: "diet plan",
+        amount: dietFee,
+        date: new Date().toISOString().slice(0, 10),
+        status: "paid",
+        mode: "UPI",
+        description: `Diet Chart Fee - ${member.name}`,
+        trainerId: member.trainerId || "",
+        portalLocked: false
+    });
+
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+        localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS));
+    } catch (e) {
+        console.error("Failed to save diet chart payment details", e);
+    }
+
+    alert(`✅ Payment Collected!\n\n₹${dietFee} recorded for ${member.name}.\nTrainer assigned will receive a 10% commission of ₹${dietFee * 0.1}.`);
+    window.closeTransactionModal();
+    renderMembersPage();
+};

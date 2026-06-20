@@ -297,6 +297,7 @@ window.approveTrainer = function(reqId) {
         name: req.name,
         email: req.email,
         phone: req.phone,
+        password: "password123",
         photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
         joiningDate: new Date().toLocaleDateString('en-GB'),
         status: "active", // পেন্ডিং থেকে সরাসরি অ্যাক্টিভ হয়ে গেল
@@ -308,6 +309,9 @@ window.approveTrainer = function(reqId) {
     // পেন্ডিং লিস্ট থেকে রিমুভ করা
     window.PENDING_TRAINERS.splice(index, 1);
     
+    try {
+        localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
+    } catch(e) {}
     alert(`Success: ${req.name} is now an active trainer.`);
     
     // রেন্ডার করা (ড্যাশবোর্ড রিফ্রেশ হবে)
