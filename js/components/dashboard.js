@@ -34,6 +34,14 @@ function getDashboardView() {
                     </div>
                     <p class="text-xs text-gray-500 bg-black/30 px-3 py-1 rounded-full font-mono" id="qr-token">Token: Generating...</p>
                     <p id="qr-timer" class="text-[10px] text-brandRed font-mono mt-1"></p>
+                    
+                    <div class="w-full border-t border-gray-800/60 pt-4 mt-2 space-y-3">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase block text-center">Scan Member Token / ID</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="admin-scanner-input" placeholder="e.g. m-001" class="flex-1 bg-black/50 border border-gray-800 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-brandRed text-xs text-center">
+                            <button onclick="window.adminScanMemberQR()" class="bg-brandRed hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow">Scan</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="lg:col-span-2 bg-darkSurface border border-gray-800 p-6 rounded-2xl flex flex-col" id="live-scan-container">
                     <p class="text-gray-500 text-sm">Loading Live Scan Monitor...</p>
@@ -348,3 +356,30 @@ function startQRTimer() {
         const timerText = document.getElementById('qr-timer'); if (timerText) timerText.textContent = `Regen in: ${hours}:${minutes}:${seconds}`;
     }, 1000);
 }
+
+window.adminScanMemberQR = function() {
+    const inputVal = document.getElementById('admin-scanner-input').value.trim().toLowerCase();
+    if (!inputVal) return alert("Please enter a Member ID or Token.");
+
+    const members = window.MOCK_MEMBERS || [];
+    const matched = members.find(m => m.id.toLowerCase() === inputVal || (m.email && m.email.toLowerCase() === inputVal));
+
+    if (!matched) {
+        alert("❌ Scan Failed: Invalid Member ID or Token.");
+        return;
+    }
+
+    if (matched.portalLocked) {
+        alert(`❌ Access Blocked: Member ${matched.name} portal is locked.`);
+        return;
+    }
+
+    if (typeof window.simulateMemberScan === 'function') {
+        window.simulateMemberScan(matched.id);
+        document.getElementById('admin-scanner-input').value = "";
+        renderLiveStatusTracking();
+        renderDashboardMetrics();
+    } else {
+        alert("Scan Engine Error: simulateMemberScan function not found.");
+    }
+};

@@ -130,7 +130,7 @@ function getTrainerPortalView() {
                                 ? `<button onclick="window.trainerCheckInShift()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold py-3 rounded-xl transition-all shadow-md flex justify-center items-center"><i class="ph ph-sign-in mr-1.5 text-base"></i>Start Shift</button>` 
                                 : !hasLeft 
                                     ? `<button onclick="window.trainerCheckOutShift()" class="w-full bg-brandRed hover:bg-red-700 text-white text-xs font-extrabold py-3 rounded-xl transition-all shadow-md flex justify-center items-center"><i class="ph ph-sign-out mr-1.5 text-base"></i>End Shift</button>` 
-                                    : `<button disabled class="w-full bg-gray-800 text-gray-500 text-xs font-bold py-3 rounded-xl cursor-not-allowed uppercase tracking-wider">Shift Fully Completed</button>`
+                                    : `<button onclick="window.trainerStartNextShift()" class="w-full bg-green-600 hover:bg-green-700 text-white text-xs font-extrabold py-3 rounded-xl transition-all shadow-md flex justify-center items-center"><i class="ph ph-arrow-clockwise mr-1.5 text-base"></i>Start Next Shift</button>`
                             }
                         </div>
                     </div>
@@ -181,6 +181,33 @@ function getTrainerPortalView() {
                 <!-- REVENUE SHARE COMMISSION BREAKDOWN PANEL -->
                 <div class="bg-darkSurface border border-gray-800 p-6 rounded-2xl shadow-xl" id="trainer-revenue-panel">
                     ${renderTrainerRevenuePanel(t.id)}
+                </div>
+
+                <!-- FIGHTER RATINGS PANEL -->
+                <div class="bg-darkSurface border border-amber-500/15 p-6 rounded-2xl shadow-xl relative overflow-hidden">
+                    <div class="absolute -top-8 -right-8 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl"></div>
+                    <h4 class="text-gray-400 font-bold tracking-wide text-xs uppercase border-b border-gray-800/60 pb-3 mb-4 flex items-center justify-between">
+                        <span><i class="ph ph-star text-amber-400 mr-2 text-base"></i>Fighter Ratings & Feedback</span>
+                        <span class="text-[10px] font-mono text-amber-400 font-bold">${t.kpis.satisfaction.toFixed(1)} / 5.0 ★</span>
+                    </h4>
+                    ${(() => {
+                        const ratings = (t.kpis && t.kpis.fighterRatings) || [];
+                        if (ratings.length === 0) return `<p class="text-gray-600 text-xs italic py-6 text-center border border-dashed border-gray-800 rounded-xl">No fighter ratings yet. Ratings will appear here once fighters submit feedback from their portal.</p>`;
+                        return `<div class="space-y-3 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
+                            ${[...ratings].reverse().map(r => `
+                                <div class="bg-black/20 border border-gray-800/60 p-3.5 rounded-xl flex items-start space-x-3">
+                                    <div class="text-amber-400 text-base font-black min-w-[60px] font-mono">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex justify-between items-center">
+                                            <p class="text-white text-xs font-bold">${r.memberName || 'Fighter'}</p>
+                                            <p class="text-[9px] text-gray-500 font-mono">${r.date}</p>
+                                        </div>
+                                        ${r.note ? `<p class="text-gray-400 text-[10px] mt-1 italic leading-relaxed">"${r.note}"</p>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>`;
+                    })()}
                 </div>
             </div>
         `;
@@ -401,6 +428,14 @@ function getTrainerPortalView() {
                         <div>
                             <label class="text-gray-500 text-[10px] uppercase font-bold block mb-1">Avatar Photo URL</label>
                             <input type="text" id="edit-t-photo" value="${t.photoUrl}" class="w-full bg-black/50 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-gray-300 focus:border-indigo-500 outline-none font-mono font-bold">
+                            <div class="mt-2 flex items-center space-x-3">
+                                <label for="upload-avatar-file" class="cursor-pointer bg-black/40 hover:bg-black/80 border border-gray-800 hover:border-indigo-500 text-[10px] text-gray-300 font-extrabold px-3 py-2 rounded-xl transition-all flex items-center space-x-1.5">
+                                    <i class="ph ph-upload-simple text-sm text-indigo-400"></i>
+                                    <span>Upload Image</span>
+                                </label>
+                                <input type="file" id="upload-avatar-file" accept="image/*" class="hidden" onchange="window.handleTrainerAvatarUpload(event)">
+                                <span id="upload-status" class="text-[9px] text-gray-500 font-mono italic">or paste a URL above</span>
+                            </div>
                         </div>
                         
                         <button onclick="window.saveTrainerPortalProfile()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold py-3.5 rounded-xl uppercase tracking-widest shadow-lg transition-all mt-4">Save Changes</button>
@@ -612,6 +647,54 @@ window.trainerCheckOutShift = function() {
 
     alert(`🛑 SHIFT SIGN-OUT:\nDuty completed. Shift ended successfully at ${timeStr}.`);
     navigateTo('trainer-portal');
+};
+
+window.trainerStartNextShift = function() {
+    if (!loggedInTrainer) return;
+    if (confirm("Start a new shift? This resets today's login status.")) {
+        loggedInTrainer.todayAttendance.checkIn = "--:--";
+        loggedInTrainer.todayAttendance.checkOut = null;
+        loggedInTrainer.todayAttendance.workingHours = 0;
+        
+        // Sync to mock DB list & LocalStorage
+        const index = window.MOCK_TRAINERS.findIndex(t => t.id === loggedInTrainer.id);
+        if (index !== -1) window.MOCK_TRAINERS[index] = loggedInTrainer;
+        try {
+            localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
+        } catch(e) {}
+        
+        navigateTo('trainer-portal');
+    }
+};
+
+window.handleTrainerAvatarUpload = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+        alert("Image size must be less than 2MB.");
+        return;
+    }
+
+    const reader = new FileReader();
+    const statusText = document.getElementById('upload-status');
+    if (statusText) statusText.textContent = "Uploading...";
+
+    reader.onload = function(e) {
+        const base64Data = e.target.result;
+        const photoInput = document.getElementById('edit-t-photo');
+        if (photoInput) {
+            photoInput.value = base64Data;
+        }
+        if (statusText) statusText.textContent = "Upload successful! (Ready to save)";
+    };
+
+    reader.onerror = function() {
+        if (statusText) statusText.textContent = "Upload failed.";
+        alert("Error reading file.");
+    };
+
+    reader.readAsDataURL(file);
 };
 
 window.saveTrainerPortalProfile = function() {
@@ -1125,6 +1208,176 @@ window.saveAssessmentForm = function(memberId) {
     } catch(e) {}
 
     alert(`✅ Success: Assessment data saved for ${member.name}. status badge set to Uploaded.`);
+    window.closeTrainerModal();
+    navigateTo('trainer-portal');
+};
+
+window.openUpdateRoutineModal = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return alert("Error: Member not found.");
+
+    const modal = document.getElementById('trainer-modal');
+    if (!modal) return;
+
+    const todaysRoutine = member.todaysRoutine || "";
+    const history = member.routineHistory || [];
+
+    const historyHTML = history.length === 0
+        ? `<p class="text-gray-600 text-xs italic py-4 text-center">No previous routines logged yet.</p>`
+        : history.map(h => `
+            <div class="bg-black/40 border border-gray-800/80 p-3 rounded-xl space-y-1">
+                <div class="flex justify-between items-center text-[10px] text-gray-500 font-mono">
+                    <span class="font-bold text-indigo-400"><i class="ph ph-calendar-blank mr-1"></i>${h.date}</span>
+                </div>
+                <div class="text-gray-300 text-xs font-mono whitespace-pre-wrap">${h.routine}</div>
+            </div>
+        `).reverse().join('');
+
+    modal.innerHTML = `
+        <div class="bg-gradient-to-br from-gray-900 via-darkBg to-black border border-gray-800 p-[2px] rounded-2xl w-[95%] max-w-2xl shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="bg-darkBg/95 rounded-[14px] p-6 flex flex-col text-xs text-left relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-24 bg-indigo-600/5 blur-2xl"></div>
+                
+                <!-- HEADER -->
+                <div class="flex items-center justify-between border-b border-gray-800 pb-4 mb-4 z-10">
+                    <div class="flex items-center space-x-3">
+                        <img src="${member.photoUrl}" class="w-10 h-10 rounded-full border border-gray-800 object-cover">
+                        <div>
+                            <h3 class="font-bold text-white text-base tracking-wide">Workout Routine Plan</h3>
+                            <p class="text-[10px] text-gray-500 font-mono">Fighter: ${member.name} | Level: ${(member.assessmentData && member.assessmentData.fighterLevel) || "Beginner"}</p>
+                        </div>
+                    </div>
+                    <button onclick="window.closeTrainerModal()" class="text-gray-500 hover:text-white text-lg transition-colors"><i class="ph ph-x"></i></button>
+                </div>
+                
+                <!-- BODY -->
+                <div class="space-y-4 z-10">
+                    <div>
+                        <label class="text-gray-400 font-bold uppercase tracking-wider text-[10px] block mb-2">Today's Workout Routine</label>
+                        <textarea id="edit-routine-text" rows="5" placeholder="Enter exercises, sets, reps (e.g. Bench press 4x10...)" class="w-full bg-black/50 border border-gray-800 focus:border-indigo-500 rounded-xl p-3.5 text-xs text-white resize-none outline-none font-mono leading-relaxed">${todaysRoutine}</textarea>
+                    </div>
+
+                    <div>
+                        <label class="text-gray-400 font-bold uppercase tracking-wider text-[10px] block mb-2">Previous Routines (History)</label>
+                        <div class="max-h-[180px] overflow-y-auto pr-1 custom-scrollbar space-y-2">
+                            ${historyHTML}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FOOTER -->
+                <div class="flex justify-end space-x-3 border-t border-gray-800 pt-4 mt-5 z-10">
+                    <button type="button" onclick="window.closeTrainerModal()" class="px-5 py-2.5 bg-black/40 border border-gray-800 hover:bg-gray-800 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-all">Cancel</button>
+                    <button type="button" onclick="window.saveWorkoutRoutine('${member.id}')" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all">Save Routine</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.firstElementChild.classList.remove('scale-95');
+        modal.firstElementChild.classList.add('scale-100');
+    }, 10);
+};
+
+window.saveWorkoutRoutine = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return alert("Error: Member not found.");
+
+    const newRoutine = document.getElementById('edit-routine-text').value.trim();
+    const oldRoutine = member.todaysRoutine || "";
+
+    if (newRoutine !== oldRoutine) {
+        if (oldRoutine) {
+            if (!member.routineHistory) member.routineHistory = [];
+            member.routineHistory.push({
+                date: new Date().toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                routine: oldRoutine
+            });
+        }
+        member.todaysRoutine = newRoutine;
+        member.routineCompleted = false;
+
+        try {
+            localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+        } catch(e) {}
+    } else {
+        member.routineCompleted = false;
+        try {
+            localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+        } catch(e) {}
+    }
+
+    alert(`Workout routine for ${member.name} updated successfully.`);
+    window.closeTrainerModal();
+    navigateTo('trainer-portal');
+};
+
+window.openDietChartModal = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return alert("Error: Member not found.");
+
+    const modal = document.getElementById('trainer-modal');
+    if (!modal) return;
+
+    const dietChart = member.dietChart || "";
+
+    modal.innerHTML = `
+        <div class="bg-gradient-to-br from-gray-900 via-darkBg to-black border border-gray-800 p-[2px] rounded-2xl w-[95%] max-w-lg shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="bg-darkBg/95 rounded-[14px] p-6 flex flex-col text-xs text-left relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-24 bg-indigo-600/5 blur-2xl"></div>
+                
+                <!-- HEADER -->
+                <div class="flex items-center justify-between border-b border-gray-800 pb-4 mb-4 z-10">
+                    <div class="flex items-center space-x-3">
+                        <img src="${member.photoUrl}" class="w-10 h-10 rounded-full border border-gray-800 object-cover">
+                        <div>
+                            <h3 class="font-bold text-white text-base tracking-wide">Client Diet & Nutrition Plan</h3>
+                            <p class="text-[10px] text-gray-500 font-mono">Fighter: ${member.name}</p>
+                        </div>
+                    </div>
+                    <button onclick="window.closeTrainerModal()" class="text-gray-500 hover:text-white text-lg transition-colors"><i class="ph ph-x"></i></button>
+                </div>
+                
+                <!-- BODY -->
+                <div class="space-y-4 z-10">
+                    <div>
+                        <label class="text-gray-400 font-bold uppercase tracking-wider text-[10px] block mb-2">Active Diet Chart Details</label>
+                        <textarea id="edit-diet-text" rows="8" placeholder="Enter daily diet plan (e.g. Breakfast: Oats... Lunch: Chicken Rice...)" class="w-full bg-black/50 border border-gray-800 focus:border-indigo-500 rounded-xl p-3.5 text-xs text-white resize-none outline-none font-mono leading-relaxed">${dietChart}</textarea>
+                    </div>
+                </div>
+                
+                <!-- FOOTER -->
+                <div class="flex justify-end space-x-3 border-t border-gray-800 pt-4 mt-5 z-10">
+                    <button type="button" onclick="window.closeTrainerModal()" class="px-5 py-2.5 bg-black/40 border border-gray-800 hover:bg-gray-800 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-all">Cancel</button>
+                    <button type="button" onclick="window.saveDietChart('${member.id}')" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all">Save Diet Chart</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.firstElementChild.classList.remove('scale-95');
+        modal.firstElementChild.classList.add('scale-100');
+    }, 10);
+};
+
+window.saveDietChart = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return alert("Error: Member not found.");
+
+    const newDiet = document.getElementById('edit-diet-text').value.trim();
+    member.dietChart = newDiet;
+
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+    } catch(e) {}
+
+    alert(`Diet chart for ${member.name} updated successfully.`);
     window.closeTrainerModal();
     navigateTo('trainer-portal');
 };

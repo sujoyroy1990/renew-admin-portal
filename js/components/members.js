@@ -154,6 +154,16 @@ window.simulateMemberScan = function(memberId) {
         member.checkedInToday = false;
         member.lastCheckOut = `${todayStr} ${timeStr}`;
 
+        if (member.todaysRoutine && !member.routineCompleted) {
+            if (!member.routineHistory) member.routineHistory = [];
+            member.routineHistory.push({
+                date: new Date().toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                routine: member.todaysRoutine,
+                completed: true
+            });
+            member.routineCompleted = true;
+        }
+
         if (!member.checkInHistory) member.checkInHistory = [];
         member.checkInHistory.push({ type: 'out', date: todayStr, time: timeStr, method: "Desk Scan" });
 
@@ -444,11 +454,42 @@ window.assignTrainerToMember = function(memberId, selectedTrainerId) {
     const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
     if (!member) return;
 
+    const trainers = window.MOCK_TRAINERS || [];
+
+    // 1. Remove from OLD trainer's assignedFighterIds
+    if (member.trainerId) {
+        const oldTrainer = trainers.find(t => t.id === member.trainerId);
+        if (oldTrainer && oldTrainer.assignedFighterIds) {
+            oldTrainer.assignedFighterIds = oldTrainer.assignedFighterIds.filter(id => id !== memberId);
+        }
+    }
+
+    // 2. Update member's trainerId
     member.trainerId = selectedTrainerId;
+
+    // 3. Add to NEW trainer's assignedFighterIds
+    if (selectedTrainerId) {
+        const newTrainer = trainers.find(t => t.id === selectedTrainerId);
+        if (newTrainer) {
+            if (!newTrainer.assignedFighterIds) newTrainer.assignedFighterIds = [];
+            if (!newTrainer.assignedFighterIds.includes(memberId)) {
+                newTrainer.assignedFighterIds.push(memberId);
+            }
+            // Sync kpis.totalAssigned
+            newTrainer.kpis = newTrainer.kpis || {};
+            newTrainer.kpis.totalAssigned = newTrainer.assignedFighterIds.length;
+        }
+    }
+
+    // 4. Persist both to localStorage
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+        localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
+    } catch(e) {}
 
     let successMessage = `Success! ${member.name} has been unassigned from personal training.`;
     if (selectedTrainerId) {
-        const trainer = window.MOCK_TRAINERS.find(t => t.id === selectedTrainerId);
+        const trainer = trainers.find(t => t.id === selectedTrainerId);
         successMessage = `Authorized! ${member.name} has been successfully assigned to coach ${trainer ? trainer.name : 'Trainer'}.`;
     }
 

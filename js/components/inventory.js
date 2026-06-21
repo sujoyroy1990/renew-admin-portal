@@ -16,7 +16,6 @@ if (!window.MOCK_INVENTORY) {
     ];
 }
 
-// ২. ই-কমার্স ভিউ লেআউট টেমপ্লেট
 function getInventoryView() {
     return `
         <div class="space-y-6">
@@ -43,6 +42,9 @@ function getInventoryView() {
 
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6" id="inventory-grid"></div>
 
+            <!-- Fighter Product Orders Panel (Admin) -->
+            <div id="fighter-orders-panel" class="bg-darkSurface border border-emerald-900/30 rounded-2xl p-6 shadow-xl"></div>
+
             <div id="transaction-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300"></div>
         </div>
     `;
@@ -65,54 +67,181 @@ function renderInventoryPage() {
 
     if (filtered.length === 0) {
         grid.innerHTML = `<div class="col-span-full py-12 text-center text-gray-600 text-sm italic border border-dashed border-gray-800 rounded-2xl bg-darkSurface/20">No marketplace products found matching criteria.</div>`;
-        return;
-    }
+    } else {
+        grid.innerHTML = filtered.map(p => {
+            let stockBadge = `<span class="text-[9px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">In Stock (${p.stock})</span>`;
+            if (p.stock === 0) {
+                stockBadge = `<span class="text-[9px] bg-red-500/10 text-brandRed border border-red-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider animate-pulse">Out of Stock</span>`;
+            } else if (p.stock <= 5) {
+                stockBadge = `<span class="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Low Stock (${p.stock})</span>`;
+            }
 
-    grid.innerHTML = filtered.map(p => {
-        let stockBadge = `<span class="text-[9px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">In Stock (${p.stock})</span>`;
-        if (p.stock === 0) {
-            stockBadge = `<span class="text-[9px] bg-red-500/10 text-brandRed border border-red-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider animate-pulse">Out of Stock</span>`;
-        } else if (p.stock <= 5) {
-            stockBadge = `<span class="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Low Stock (${p.stock})</span>`;
-        }
+            const stockPct = Math.min(Math.round((p.stock / p.maxStock) * 100), 100);
 
-        const stockPct = Math.min(Math.round((p.stock / p.maxStock) * 100), 100);
-
-        return `
-            <div class="bg-darkSurface border border-gray-800 rounded-2xl overflow-hidden flex flex-col justify-between group hover:border-gray-700 transition-all relative shadow-lg">
-                
-                <div class="w-full h-44 bg-gray-900 relative overflow-hidden">
-                    <img src="${p.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="${p.name}">
-                    <div class="absolute top-3 left-3">${stockBadge}</div>
-                    <div class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-green-400 border border-gray-800">₹${p.price.toLocaleString()}</div>
-                </div>
-
-                <div class="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                    <div>
-                        <span class="text-[9px] font-mono text-gray-500 uppercase font-bold tracking-wider">${p.category}</span>
-                        <h4 class="text-white font-bold text-sm tracking-wide mt-0.5 line-clamp-1 group-hover:text-brandRed transition-colors">${p.name}</h4>
-                        <p class="text-[10px] font-mono text-gray-500 mt-1">SKU ID: ${p.id}</p>
+            return `
+                <div class="bg-darkSurface border border-gray-800 rounded-2xl overflow-hidden flex flex-col justify-between group hover:border-gray-700 transition-all relative shadow-lg">
+                    
+                    <div class="w-full h-44 bg-gray-900 relative overflow-hidden">
+                        <img src="${p.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="${p.name}">
+                        <div class="absolute top-3 left-3">${stockBadge}</div>
+                        <div class="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-xl text-xs font-mono font-bold text-green-400 border border-gray-800">₹${p.price.toLocaleString()}</div>
                     </div>
 
-                    <div class="space-y-1">
-                        <div class="w-full bg-black/50 h-1.5 rounded-full overflow-hidden border border-gray-800">
-                            <div class="h-full rounded-full transition-all duration-300 ${p.stock === 0 ? 'bg-red-500' : p.stock <= 5 ? 'bg-amber-500' : 'bg-green-500'}" style="width: ${stockPct}%"></div>
+                    <div class="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                        <div>
+                            <span class="text-[9px] font-mono text-gray-500 uppercase font-bold tracking-wider">${p.category}</span>
+                            <h4 class="text-white font-bold text-sm tracking-wide mt-0.5 line-clamp-1 group-hover:text-brandRed transition-colors">${p.name}</h4>
+                            <p class="text-[10px] font-mono text-gray-500 mt-1">SKU ID: ${p.id}</p>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="w-full bg-black/50 h-1.5 rounded-full overflow-hidden border border-gray-800">
+                                <div class="h-full rounded-full transition-all duration-300 ${p.stock === 0 ? 'bg-red-500' : p.stock <= 5 ? 'bg-amber-500' : 'bg-green-500'}" style="width: ${stockPct}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800/40">
+                            <button onclick="window.sellInventoryItem('${p.id}')" ${p.stock === 0 ? 'disabled' : ''} class="bg-green-500 hover:bg-green-600 disabled:bg-gray-800 text-black disabled:text-gray-600 py-1.5 rounded-lg text-[11px] font-extrabold transition-all flex items-center justify-center space-x-1 shadow">
+                                <i class="ph ph-shopping-cart-simple text-xs"></i><span>Sell 1 Unit</span>
+                            </button>
+                            <button onclick="window.restockInventoryItem('${p.id}')" class="bg-black/50 hover:bg-black border border-gray-700 text-gray-300 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center space-x-1">
+                                <i class="ph ph-arrows-counter-clockwise text-xs"></i><span>Restock</span>
+                            </button>
                         </div>
                     </div>
+                </div>
+            `;
+        }).join('');
+    }
 
-                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800/40">
-                        <button onclick="window.sellInventoryItem('${p.id}')" ${p.stock === 0 ? 'disabled' : ''} class="bg-green-500 hover:bg-green-600 disabled:bg-gray-800 text-black disabled:text-gray-600 py-1.5 rounded-lg text-[11px] font-extrabold transition-all flex items-center justify-center space-x-1 shadow">
-                            <i class="ph ph-shopping-cart-simple text-xs"></i><span>Sell 1 Unit</span>
-                        </button>
-                        <button onclick="window.restockInventoryItem('${p.id}')" class="bg-black/50 hover:bg-black border border-gray-700 text-gray-300 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center space-x-1">
-                            <i class="ph ph-arrows-counter-clockwise text-xs"></i><span>Restock</span>
-                        </button>
-                    </div>
+    // Render fighter orders panel
+    renderFighterOrdersPanel();
+}
+
+// =========================================================================
+// FIGHTER PRODUCT ORDERS — ADMIN DISPATCH PANEL
+// =========================================================================
+
+function renderFighterOrdersPanel() {
+    const panel = document.getElementById('fighter-orders-panel');
+    if (!panel) return;
+
+    const orders = (window.FIGHTER_PRODUCT_ORDERS || []).filter(o => o.status !== 'delivered');
+    const allOrders = window.FIGHTER_PRODUCT_ORDERS || [];
+
+    const statusCfg = {
+        'pending_payment':       { label: 'Awaiting Payment',      cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20',  icon: 'ph-clock' },
+        'paid_pending_dispatch': { label: 'Paid — Pending Dispatch', cls: 'text-blue-400 bg-blue-500/10 border-blue-500/20',    icon: 'ph-package' },
+        'delivered':             { label: '✓ Delivered',             cls: 'text-green-400 bg-green-500/10 border-green-500/20', icon: 'ph-check-circle' }
+    };
+
+    const pendingCount   = orders.filter(o => o.status === 'pending_payment').length;
+    const dispatchCount  = orders.filter(o => o.status === 'paid_pending_dispatch').length;
+    const deliveredCount = allOrders.filter(o => o.status === 'delivered').length;
+
+    panel.innerHTML = `
+        <div class="flex items-center justify-between border-b border-gray-800/60 pb-4 mb-5">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl text-xl border border-emerald-500/20">
+                    <i class="ph ph-package"></i>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold text-sm tracking-wide">Fighter Product Orders</h4>
+                    <p class="text-gray-500 text-[10px] font-mono mt-0.5">Manage bookings placed via Fighter Portal</p>
                 </div>
             </div>
-        `;
-    }).join('');
+            <div class="flex items-center space-x-3">
+                <div class="text-center">
+                    <p class="text-amber-400 font-black text-lg font-mono">${pendingCount}</p>
+                    <p class="text-[9px] text-gray-600 uppercase">Pending</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-blue-400 font-black text-lg font-mono">${dispatchCount}</p>
+                    <p class="text-[9px] text-gray-600 uppercase">To Dispatch</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-green-400 font-black text-lg font-mono">${deliveredCount}</p>
+                    <p class="text-[9px] text-gray-600 uppercase">Delivered</p>
+                </div>
+            </div>
+        </div>
+
+        ${orders.length === 0 && allOrders.length === 0 ? `
+            <div class="py-10 text-center">
+                <i class="ph ph-shopping-bag text-4xl text-gray-800 mb-2"></i>
+                <p class="text-gray-600 text-xs italic">No fighter product orders yet. They will appear here once fighters book from the Gym Shop.</p>
+            </div>
+        ` : orders.length === 0 ? `
+            <div class="py-6 text-center bg-green-950/10 border border-green-900/20 rounded-xl">
+                <i class="ph ph-check-circle text-3xl text-green-500 mb-2"></i>
+                <p class="text-green-400 text-xs font-bold">All orders dispatched & delivered!</p>
+            </div>
+        ` : `
+            <div class="space-y-3">
+                ${orders.map(order => {
+                    const cfg = statusCfg[order.status] || statusCfg['pending_payment'];
+                    const product = (window.MOCK_INVENTORY || []).find(p => p.id === order.productId);
+                    return `
+                    <div class="bg-black/20 border border-gray-800/70 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-emerald-900/40 transition-colors">
+                        <div class="flex items-center space-x-4">
+                            ${product ? `
+                                <div class="w-12 h-12 rounded-xl overflow-hidden border border-gray-800 flex-shrink-0">
+                                    <img src="${product.image}" class="w-full h-full object-cover" alt="${product.name}">
+                                </div>
+                            ` : `<div class="w-12 h-12 rounded-xl bg-gray-900 border border-gray-800 flex items-center justify-center flex-shrink-0"><i class="ph ph-package text-gray-600 text-xl"></i></div>`}
+                            <div>
+                                <p class="text-white font-bold text-sm">${order.productName}</p>
+                                <p class="text-gray-500 text-[10px] font-mono mt-0.5">
+                                    <span class="text-gray-400">${order.memberName}</span>
+                                    &nbsp;|&nbsp; ${order.id}
+                                    &nbsp;|&nbsp; ${order.orderDate}
+                                    &nbsp;|&nbsp; ${order.paymentMode}
+                                </p>
+                                <div class="mt-1.5">
+                                    <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${cfg.cls}">
+                                        <i class="ph ${cfg.icon} mr-1"></i>${cfg.label}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4 flex-shrink-0">
+                            <div class="text-right">
+                                <p class="text-white font-mono font-black text-base">₹${order.price.toLocaleString()}</p>
+                                <p class="text-gray-600 text-[9px] font-mono">1 unit</p>
+                            </div>
+                            <button onclick="window.adminDispatchOrder('${order.id}')"
+                                class="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white text-[11px] font-extrabold px-4 py-2 rounded-xl uppercase tracking-wider flex items-center space-x-1.5 shadow-[0_0_10px_rgba(16,185,129,0.25)] transition-all">
+                                <i class="ph ph-check-fat text-sm"></i>
+                                <span>Mark Paid & Dispatch</span>
+                            </button>
+                        </div>
+                    </div>
+                    `;
+                }).join('')}
+            </div>
+        `}
+
+        ${allOrders.filter(o => o.status === 'delivered').length > 0 ? `
+            <div class="mt-6 border-t border-gray-800/40 pt-4">
+                <p class="text-gray-600 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center">
+                    <i class="ph ph-check-circle text-green-500 mr-1.5"></i>Recent Deliveries
+                </p>
+                <div class="space-y-2">
+                    ${allOrders.filter(o => o.status === 'delivered').slice(-3).reverse().map(order => `
+                        <div class="flex items-center justify-between bg-green-950/5 border border-green-900/20 p-3 rounded-xl">
+                            <div>
+                                <p class="text-gray-300 text-xs font-bold">${order.productName}</p>
+                                <p class="text-gray-600 text-[10px] font-mono">${order.memberName} | ${order.orderDate}</p>
+                            </div>
+                            <span class="text-green-400 font-black font-mono text-sm">₹${order.price.toLocaleString()}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : ''}
+    `;
 }
+
 
 // =========================================================================
 // গ্লোবাল বাইন্ডেড ইনভেন্টরি ফাংশনস (WINDOW BINDING)
@@ -281,4 +410,50 @@ window.closeTransactionModal = function() {
         modal.firstElementChild.classList.add('scale-95');
     }
     setTimeout(() => { modal.classList.add('hidden'); }, 200);
+};
+
+// =========================================================================
+// ADMIN DISPATCH ENGINE — Fighter Order Fulfillment
+// =========================================================================
+
+window.adminDispatchOrder = function(orderId) {
+    const orders = window.FIGHTER_PRODUCT_ORDERS || [];
+    const order  = orders.find(o => o.id === orderId);
+    if (!order) { alert('Order not found.'); return; }
+
+    if (!confirm(`⚡ DISPATCH CONFIRMATION\n\nProduct: ${order.productName}\nBuyer: ${order.memberName}\nAmount: ₹${order.price.toLocaleString()}\nPayment: ${order.paymentMode}\n\nMark as PAID & DELIVERED?`)) return;
+
+    // 1. Update order status → delivered
+    order.status = 'delivered';
+
+    // 2. Decrement inventory stock by 1
+    const product = (window.MOCK_INVENTORY || []).find(p => p.id === order.productId);
+    if (product && product.stock > 0) {
+        product.stock -= 1;
+    }
+
+    // 3. Log income entry in Finance
+    if (!window.MOCK_TRANSACTIONS) window.MOCK_TRANSACTIONS = [];
+    const catMap = { supplements: 'supplement', gear: 'supplement', apparel: 'supplement' };
+    window.MOCK_TRANSACTIONS.unshift({
+        id:          `TXN-${String(window.MOCK_TRANSACTIONS.length + 1).padStart(3, '0')}`,
+        type:        'income',
+        category:    catMap[order.productCategory] || 'supplement',
+        amount:      order.price,
+        date:        new Date().toISOString().slice(0, 10),
+        status:      'paid',
+        mode:        order.paymentMode,
+        description: `Fighter Shop Sale: ${order.productName} → ${order.memberName}`,
+        orderId:     orderId,
+        trainerId:   ''
+    });
+
+    // 4. Persist all changes
+    if (typeof window.saveFighterOrders === 'function') window.saveFighterOrders();
+    try {
+        localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS));
+    } catch(e) {}
+
+    alert(`✅ ORDER DISPATCHED!\n\n"${order.productName}" marked as DELIVERED for ${order.memberName}.\nFinance ledger updated with ₹${order.price.toLocaleString()} income entry.`);
+    renderInventoryPage();
 };

@@ -14,7 +14,7 @@ const MOCK_TRAINERS = [
         dob: "1995-05-15",
         status: "active",
         assignedFighterIds: ["m1", "m2"],
-        kpis: { totalAssigned: 2, retentionRate: 95, satisfaction: 4.8, attendanceRate: 98 },
+        kpis: { totalAssigned: 2, retentionRate: 95, satisfaction: 4.8, attendanceRate: 98, fighterRatings: [] },
         revenue: { ptSales: 15000, dietPlanSales: 3000, supplementSales: 5000, totalRevenue: 23000 },
         todayAttendance: { checkIn: "06:00 AM", checkOut: "11:00 AM", workingHours: 5 },
         monthlyStats: { daysPresent: 24, lateArrivals: 2, absentDays: 1 }
@@ -31,7 +31,7 @@ const MOCK_TRAINERS = [
         dob: "1992-08-20",
         status: "active",
         assignedFighterIds: ["m3"],
-        kpis: { totalAssigned: 1, retentionRate: 88, satisfaction: 4.2, attendanceRate: 92 },
+        kpis: { totalAssigned: 1, retentionRate: 88, satisfaction: 4.2, attendanceRate: 92, fighterRatings: [] },
         revenue: { ptSales: 8000, dietPlanSales: 1500, supplementSales: 2000, totalRevenue: 11500 },
         todayAttendance: { checkIn: "07:15 AM", checkOut: null, workingHours: 0 }, // এখনো চেক-আউট করেনি
         monthlyStats: { daysPresent: 22, lateArrivals: 5, absentDays: 3 }
@@ -229,3 +229,26 @@ if (_savedAdmins) {
         }
     } catch(e) {}
 }
+
+// ৯. Fighter Product Orders — Shared global store (Fighter Portal + Admin Inventory sync)
+// প্রতিটি order object:
+// { id, memberId, memberName, productId, productName, productCategory, price, qty, paymentMode, orderDate, status }
+// status: 'pending_payment' | 'paid_pending_dispatch' | 'delivered'
+window.FIGHTER_PRODUCT_ORDERS = [];
+
+const _savedOrders = localStorage.getItem('FIGHTER_ORDERS_DB');
+if (_savedOrders) {
+    try {
+        const parsed = JSON.parse(_savedOrders);
+        if (Array.isArray(parsed)) {
+            window.FIGHTER_PRODUCT_ORDERS = parsed;
+        }
+    } catch(e) {}
+}
+
+// Helper: Orders সেভ করার utility function
+window.saveFighterOrders = function() {
+    try {
+        localStorage.setItem('FIGHTER_ORDERS_DB', JSON.stringify(window.FIGHTER_PRODUCT_ORDERS));
+    } catch(e) {}
+};
