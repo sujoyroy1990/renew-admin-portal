@@ -535,8 +535,24 @@ function typeTerminalText(text, isError, callback) {
     }, 40);
 }
 
+async function refreshAuthCache() {
+    if (window.dbService && typeof window.dbService.bootstrapCaches === 'function') {
+        try {
+            await window.dbService.bootstrapCaches();
+        } catch (e) {
+            console.warn('Auth cache refresh failed:', e);
+        }
+    }
+
+    return {
+        admins: Array.isArray(window.ADMINS_LIST) ? window.ADMINS_LIST : [],
+        trainers: Array.isArray(window.MOCK_TRAINERS) ? window.MOCK_TRAINERS : [],
+        members: Array.isArray(window.MOCK_MEMBERS) ? window.MOCK_MEMBERS : []
+    };
+}
+
 // LOGIN LOGIC WITH TERMINAL BULB FEEDBACK
-window.submitAuthLogin = function() {
+window.submitAuthLogin = async function() {
     const inputId = document.getElementById('login-id-input').value.trim();
     const inputPass = document.getElementById('login-password-input').value.trim();
 
@@ -549,9 +565,16 @@ window.submitAuthLogin = function() {
         return;
     }
 
+    const authData = await refreshAuthCache();
+
     if (activeRoleTab === 'admin') {
-        const admins = window.ADMINS_LIST || [];
-        const adminUser = admins.find(a => phoneMatch(a.phone, inputId) || a.id.toLowerCase() === inputId.toLowerCase());
+        const admins = authData.admins || [];
+        const adminUser = admins.find(a => {
+            const idMatch = a && a.id && a.id.toLowerCase() === inputId.toLowerCase();
+            const phoneMatchValue = phoneMatch(a.phone, inputId);
+            const emailMatchValue = a && a.email && a.email.toLowerCase() === inputId.toLowerCase();
+            return phoneMatchValue || idMatch || emailMatchValue;
+        });
         
         if (!adminUser) {
             if (bulb) bulb.classList.add('denied');
@@ -570,15 +593,20 @@ window.submitAuthLogin = function() {
         typeTerminalText("ACCESS GRANTED. DEPLOYING ADMIN SESSION...", false, () => {
             setTimeout(() => {
                 localStorage.setItem('RENEW_LOGGED_IN_ROLE', 'admin');
-                localStorage.setItem('RENEW_LOGGED_IN_USER_ID', adminUser.id);
+                localStorage.setItem('RENEW_LOGGED_IN_USER_ID', adminUser.id || adminUser.phone);
                 window.loggedInRole = 'admin';
                 window.checkAuthAndNavigate();
             }, 1000);
         });
         
     } else if (activeRoleTab === 'trainer') {
-        const trainers = window.MOCK_TRAINERS || [];
-        const matched = trainers.find(t => phoneMatch(t.phone, inputId) || t.id.toLowerCase() === inputId.toLowerCase() || t.email.toLowerCase() === inputId.toLowerCase());
+        const trainers = authData.trainers || [];
+        const matched = trainers.find(t => {
+            const idMatch = t && t.id && t.id.toLowerCase() === inputId.toLowerCase();
+            const phoneMatchValue = phoneMatch(t.phone, inputId);
+            const emailMatchValue = t && t.email && t.email.toLowerCase() === inputId.toLowerCase();
+            return phoneMatchValue || idMatch || emailMatchValue;
+        });
 
         if (!matched) {
             if (bulb) bulb.classList.add('denied');
@@ -617,8 +645,12 @@ window.submitAuthLogin = function() {
         });
 
     } else if (activeRoleTab === 'fighter') {
-        const members = window.MOCK_MEMBERS || [];
-        const matched = members.find(m => phoneMatch(m.phone, inputId) || m.id.toLowerCase() === inputId.toLowerCase());
+        const members = authData.members || [];
+        const matched = members.find(m => {
+            const idMatch = m && m.id && m.id.toLowerCase() === inputId.toLowerCase();
+            const phoneMatchValue = phoneMatch(m.phone, inputId);
+            return phoneMatchValue || idMatch;
+        });
 
         if (!matched) {
             if (bulb) bulb.classList.add('denied');
@@ -640,7 +672,7 @@ window.submitAuthLogin = function() {
 };
 
 // REGISTRATION SIGNUP LOGIC
-window.submitAuthRegister = function() {
+window.submitAuthRegister = async function() {
     const bulb = document.getElementById('bulb');
     if (bulb) bulb.className = 'bulb';
 
@@ -656,6 +688,8 @@ window.submitAuthRegister = function() {
             return;
         }
 
+        await refreshAuthCache();
+
         // Check duplicate phone across all segments
         if ((window.ADMINS_LIST || []).some(a => phoneMatch(a.phone, phone)) ||
             (window.MOCK_TRAINERS || []).some(t => phoneMatch(t.phone, phone)) ||
@@ -666,9 +700,12 @@ window.submitAuthRegister = function() {
         }
 
         const newAdmin = { id: phone, name, email, phone, password: pass };
-        window.ADMINS_LIST.push(newAdmin);
+        window.ADMINS_LIST = Array.isArray(window.ADMINS_LIST) ? [...window.ADMINS_LIST, newAdmin] : [newAdmin];
 
         try {
+            if (window.dbService && typeof window.dbService.setDocument === 'function') {
+                await window.dbService.setDocument('admins', newAdmin.id, newAdmin);
+            }
             localStorage.setItem('RENEW_ADMINS_DB', JSON.stringify(window.ADMINS_LIST));
         } catch(e) {}
 

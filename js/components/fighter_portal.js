@@ -606,8 +606,16 @@ window.editMemberStats = function(memberId) {
     if(newHeight) member.height = newHeight.toUpperCase();
     const newAge = prompt(`Update Age:\n(Current: ${member.age || '26 YRS'})`, member.age || '26 YRS');
     if(newAge) member.age = newAge.toUpperCase();
-    
-    // Sync back to MOCK_MEMBERS_DB
+
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('members', member.id, member)
+            .then(() => {
+                navigateTo('fighter-portal');
+            })
+            .catch(() => navigateTo('fighter-portal'));
+        return;
+    }
+
     try {
         localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
     } catch(e) {}
@@ -676,12 +684,29 @@ function processCheckIn(member) {
     if (!member.checkedInToday) member.streak = (member.streak || 0) + 1;
     member.checkedInToday = true;
     member.lastCheckIn = `${todayStr} ${timeStr}`;
-    
-    try {
-        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
-    } catch(e) {}
-    
-    navigateTo('fighter-portal');
+
+    const attendanceLog = {
+        memberId: member.id,
+        memberName: member.name,
+        type: member.checkedInToday ? 'check-in' : 'check-out',
+        date: todayStr,
+        time: timeStr,
+        method: 'Portal Scan'
+    };
+
+    const persistMember = () => {
+        if (window.dbService && window.dbService.setDocument) {
+            return window.dbService.setDocument('members', member.id, member)
+                .then(() => window.dbService.addDocument('attendance', attendanceLog, member.id))
+                .then(() => navigateTo('fighter-portal'));
+        }
+        try {
+            localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+        } catch(e) {}
+        navigateTo('fighter-portal');
+    };
+
+    persistMember();
 }
 
 window.payMemberDuesSimulation = function(memberId, amount) {
@@ -690,13 +715,21 @@ window.payMemberDuesSimulation = function(memberId, amount) {
     const targetTxns = txns.filter(t => t.type === 'income' && t.status === 'pending' && t.description.toLowerCase().includes(member.name.toLowerCase()));
     targetTxns.forEach(t => { t.status = 'pending_verification'; t.mode = 'Online Gateway'; });
     alert(`💳 REQUEST SUBMITTED!\n\nTransaction of ₹${amount.toLocaleString()} is currently on hold.\nWaiting for Admin verification.`);
-    fighterCurrentTab = 'dashboard'; 
-    
-    try {
-        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
-    } catch(e) {}
-    
-    navigateTo('fighter-portal');
+    fighterCurrentTab = 'dashboard';
+
+    const persist = () => {
+        if (window.dbService && window.dbService.setDocument) {
+            const savePromises = targetTxns.map(t => window.dbService.setDocument('transactions', t.id, t));
+            return Promise.all(savePromises)
+                .then(() => navigateTo('fighter-portal'));
+        }
+        try {
+            localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+        } catch(e) {}
+        navigateTo('fighter-portal');
+    };
+
+    persist();
 };
 
 // =========================================================================
@@ -739,14 +772,11 @@ window.submitTrainerRating = function(memberId, trainerId) {
         return;
     }
 
-    // Initialize fighterRatings if missing
     if (!trainer.kpis) trainer.kpis = {};
     if (!trainer.kpis.fighterRatings) trainer.kpis.fighterRatings = [];
 
-    // Remove any old rating from this member for this trainer
     trainer.kpis.fighterRatings = trainer.kpis.fighterRatings.filter(r => r.memberId !== memberId);
 
-    // Push new rating
     const note = (document.getElementById('trainer-rating-note') || {}).value || '';
     trainer.kpis.fighterRatings.push({
         memberId: memberId,
@@ -756,22 +786,30 @@ window.submitTrainerRating = function(memberId, trainerId) {
         date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
     });
 
-    // Recalculate satisfaction as average of all fighter ratings
     const allRatings = trainer.kpis.fighterRatings;
     const newAvg = allRatings.reduce((sum, r) => sum + r.stars, 0) / allRatings.length;
     trainer.kpis.satisfaction = parseFloat(newAvg.toFixed(1));
-
-    // Mark member as having rated this trainer (prevent re-rating per session)
     member.lastRatedTrainerId = trainerId;
 
-    // Persist to localStorage
-    try {
-        localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
-        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
-    } catch(e) {}
+    const persist = () => {
+        if (window.dbService && window.dbService.setDocument) {
+            return Promise.all([
+                window.dbService.setDocument('trainers', trainer.id, trainer),
+                window.dbService.setDocument('members', member.id, member)
+            ]).then(() => {
+                alert(`⭐ Rating submitted! You gave ${trainer.name} ${selectedStars} star${selectedStars > 1 ? 's' : ''}.\n\nNew KPI Score: ${trainer.kpis.satisfaction.toFixed(1)} / 5.0`);
+                navigateTo('fighter-portal');
+            });
+        }
+        try {
+            localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
+            localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+        } catch(e) {}
+        alert(`⭐ Rating submitted! You gave ${trainer.name} ${selectedStars} star${selectedStars > 1 ? 's' : ''}.\n\nNew KPI Score: ${trainer.kpis.satisfaction.toFixed(1)} / 5.0`);
+        navigateTo('fighter-portal');
+    };
 
-    alert(`⭐ Rating submitted! You gave ${trainer.name} ${selectedStars} star${selectedStars > 1 ? 's' : ''}.\n\nNew KPI Score: ${trainer.kpis.satisfaction.toFixed(1)} / 5.0`);
-    navigateTo('fighter-portal');
+    persist();
 };
 
 // =========================================================================
@@ -863,15 +901,14 @@ window.submitFighterBooking = function(memberId, productId) {
     const member  = (window.MOCK_MEMBERS || []).find(m => m.id === memberId);
     if (!product || !member) { alert('Error: Product or member not found.'); return; }
 
-    // Read selected payment mode
     const modeInput = document.querySelector('input[name="fighter-pay-mode"]:checked');
     const payMode   = modeInput ? modeInput.value : 'UPI';
 
-    // Create the order
     const orderId = `ORD-${String((window.FIGHTER_PRODUCT_ORDERS || []).length + 1).padStart(3, '0')}-${Date.now().toString().slice(-4)}`;
     const newOrder = {
         id:              orderId,
         memberId:        memberId,
+        ownerId:         memberId,
         memberName:      member.name,
         productId:       productId,
         productName:     product.name,
@@ -886,12 +923,27 @@ window.submitFighterBooking = function(memberId, productId) {
     if (!window.FIGHTER_PRODUCT_ORDERS) window.FIGHTER_PRODUCT_ORDERS = [];
     window.FIGHTER_PRODUCT_ORDERS.push(newOrder);
 
-    // Persist
-    if (typeof window.saveFighterOrders === 'function') window.saveFighterOrders();
+    const persist = () => {
+        if (window.dbService && window.dbService.addDocument) {
+            return window.dbService.addDocument('orders', newOrder, memberId)
+                .then(() => {
+                    window.closeFighterBookingModal();
+                    alert(`✅ BOOKING CONFIRMED!\n\n"${product.name}" booked via ${payMode}.\nOrder ID: ${newOrder.id}\n\nYour order will appear in "My Orders" and the admin will dispatch it shortly.`);
+                    navigateTo('fighter-portal');
+                })
+                .catch(() => {
+                    if (typeof window.saveFighterOrders === 'function') window.saveFighterOrders();
+                    window.closeFighterBookingModal();
+                    navigateTo('fighter-portal');
+                });
+        }
+        if (typeof window.saveFighterOrders === 'function') window.saveFighterOrders();
+        window.closeFighterBookingModal();
+        alert(`✅ BOOKING CONFIRMED!\n\n"${product.name}" booked via ${payMode}.\nOrder ID: ${orderId}\n\nYour order will appear in "My Orders" and the admin will dispatch it shortly.`);
+        navigateTo('fighter-portal');
+    };
 
-    window.closeFighterBookingModal();
-    alert(`✅ BOOKING CONFIRMED!\n\n"${product.name}" booked via ${payMode}.\nOrder ID: ${orderId}\n\nYour order will appear in "My Orders" and the admin will dispatch it shortly.`);
-    navigateTo('fighter-portal');
+    persist();
 };
 
 
