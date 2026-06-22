@@ -220,9 +220,9 @@ function render10VisualGraphs() {
         }
     });
     const totalVol = mVol + pVol + sVol + oVol;
-    const mPct = totalVol > 0 ? Math.round((mVol / totalVol) * 100) : 50;
-    const pPct = totalVol > 0 ? Math.round((pVol / totalVol) * 100) : 30;
-    const sPct = totalVol > 0 ? (100 - mPct - pPct) : 20;
+    const mPct = totalVol > 0 ? Math.round((mVol / totalVol) * 100) : 0;
+    const pPct = totalVol > 0 ? Math.round((pVol / totalVol) * 100) : 0;
+    const sPct = totalVol > 0 ? (100 - mPct - pPct) : 0;
 
     const g4 = `
         <div class="bg-darkSurface border border-gray-800 p-4 rounded-2xl flex flex-col justify-between h-48">
@@ -286,8 +286,7 @@ function render10VisualGraphs() {
         else if (hr >= 22 || hr < 2) hrCounts[8]++;
         else hrCounts[9]++;
     });
-    const baselineHrs = [3, 6, 8, 5, 2, 4, 12, 15, 9, 3];
-    const combinedHrs = hrCounts.map((c, idx) => c + baselineHrs[idx]);
+    const combinedHrs = hrCounts;
     const maxHr = Math.max(...combinedHrs, 1);
 
     const g6Bars = combinedHrs.map((c, idx) => {
@@ -314,33 +313,34 @@ function render10VisualGraphs() {
     const trainerTargets = window.TRAINER_TARGETS || { "t1": 30000, "t2": 20000 };
     const leaderboardData = trainers.map(t => {
         let revenue = 0;
-        if (t.revenue) {
+        if (typeof window.calculateTrainerEarnings === 'function') {
+            const earnings = window.calculateTrainerEarnings(t.id, null);
+            revenue = (earnings.breakdown.find(b => b.category.toLowerCase() === 'pt') || {}).revenue || 0;
+        } else if (t.revenue) {
             revenue = t.revenue.ptSales || 0;
         }
         const target = trainerTargets[t.id] || 15000;
         const pct = target > 0 ? Math.round((revenue / target) * 100) : 0;
         return { name: t.name, target, revenue, pct };
     }).sort((a, b) => b.revenue - a.revenue);
-    
-    while (leaderboardData.length < 3) {
-        leaderboardData.push({ name: "Amit D.", target: 15000, revenue: 4500, pct: 30 });
-    }
 
-    const g7Rows = leaderboardData.slice(0, 3).map((item, idx) => {
-        const color = idx === 0 ? 'bg-green-500' : (idx === 1 ? 'bg-amber-400' : 'bg-brandRed');
-        const textCol = idx === 0 ? 'text-green-400' : (idx === 1 ? 'text-amber-400' : 'text-brandRed');
-        return `
-            <div>
-                <div class="flex justify-between text-[9px] mb-1">
-                    <span class="text-gray-300">${item.name} (Target ${Math.round(item.target/1000)}k)</span>
-                    <span class="${textCol} font-bold">${item.pct}%</span>
+    const g7Rows = leaderboardData.length > 0 
+        ? leaderboardData.slice(0, 3).map((item, idx) => {
+            const color = idx === 0 ? 'bg-green-500' : (idx === 1 ? 'bg-amber-400' : 'bg-brandRed');
+            const textCol = idx === 0 ? 'text-green-400' : (idx === 1 ? 'text-amber-400' : 'text-brandRed');
+            return `
+                <div>
+                    <div class="flex justify-between text-[9px] mb-1">
+                        <span class="text-gray-300">${item.name} (Target ${Math.round(item.target/1000)}k)</span>
+                        <span class="${textCol} font-bold">${item.pct}%</span>
+                    </div>
+                    <div class="w-full bg-black/50 h-1.5 rounded-full">
+                        <div class="h-full rounded-full ${color} transition-all duration-500" style="width: ${Math.min(item.pct, 100)}%"></div>
+                    </div>
                 </div>
-                <div class="w-full bg-black/50 h-1.5 rounded-full">
-                    <div class="h-full rounded-full ${color} transition-all duration-500" style="width: ${Math.min(item.pct, 100)}%"></div>
-                </div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('')
+        : `<div class="text-center text-gray-600 text-xs italic py-6">No trainer performance data.</div>`;
 
     const g7 = `
         <div class="bg-darkSurface border border-gray-800 p-4 rounded-2xl flex flex-col justify-between h-48">
@@ -365,15 +365,18 @@ function render10VisualGraphs() {
         }
     });
     const totalExp = rentVal + salaryVal + marketingVal;
-    const rentPct = totalExp > 0 ? Math.round((rentVal / totalExp) * 100) : 50;
-    const salaryPct = totalExp > 0 ? Math.round((salaryVal / totalExp) * 100) : 30;
-    const marketingPct = totalExp > 0 ? (100 - rentPct - salaryPct) : 20;
+    const rentPct = totalExp > 0 ? Math.round((rentVal / totalExp) * 100) : 0;
+    const salaryPct = totalExp > 0 ? Math.round((salaryVal / totalExp) * 100) : 0;
+    const marketingPct = totalExp > 0 ? (100 - rentPct - salaryPct) : 0;
+    const conicGradient = totalExp > 0 
+        ? `conic-gradient(#EF4444 0% ${rentPct}%, #8B5CF6 ${rentPct}% ${rentPct + salaryPct}%, #64748B ${rentPct + salaryPct}% 100%)`
+        : `conic-gradient(#374151 0% 100%)`;
 
     const g8 = `
         <div class="bg-darkSurface border border-gray-800 p-4 rounded-2xl flex flex-col justify-between h-48">
             <h5 class="text-gray-500 text-[10px] uppercase font-bold tracking-wider mb-2">8. Expense Burn Breakdown</h5>
             <div class="flex-1 flex items-center justify-between">
-                <div class="w-20 h-20 rounded-full shadow-lg transition-all duration-500" style="background: conic-gradient(#EF4444 0% ${rentPct}%, #8B5CF6 ${rentPct}% ${rentPct + salaryPct}%, #64748B ${rentPct + salaryPct}% 100%);"></div>
+                <div class="w-20 h-20 rounded-full shadow-lg transition-all duration-500" style="background: ${conicGradient};"></div>
                 <div class="space-y-2 text-[9px] font-bold uppercase w-1/2">
                     <div class="text-brandRed border-b border-gray-800 pb-1" title="₹${rentVal.toLocaleString()}">● Rent: ${rentPct}%</div>
                     <div class="text-purple-400 border-b border-gray-800 pb-1" title="₹${salaryVal.toLocaleString()}">● Salaries: ${salaryPct}%</div>
@@ -388,15 +391,19 @@ function render10VisualGraphs() {
     inventory.forEach(item => {
         storeSales[item.name] = 0;
     });
-    storeSales["Premium Whey Isolate (1kg)"] = 24;
-    storeSales["Pro Boxing Leather Gloves"] = 12;
-    storeSales["RENEW Fighter Stringer/T-Shirt"] = 8;
     
     txns.forEach(t => {
-        if (t.type === 'income' && t.status === 'paid' && t.description.includes('Store POS Sale:')) {
-            const prodName = t.description.split('1x ')[1];
-            if (prodName && storeSales[prodName] !== undefined) {
-                storeSales[prodName]++;
+        if (t.type === 'income' && t.status === 'paid') {
+            if (t.description.includes('Store POS Sale:')) {
+                const prodName = t.description.split('1x ')[1];
+                if (prodName && storeSales[prodName] !== undefined) {
+                    storeSales[prodName]++;
+                }
+            } else if (t.description.includes('Fighter Shop Sale:')) {
+                const prodName = t.description.split('Fighter Shop Sale: ')[1]?.split(' → ')[0];
+                if (prodName && storeSales[prodName] !== undefined) {
+                    storeSales[prodName]++;
+                }
             }
         }
     });
@@ -405,14 +412,16 @@ function render10VisualGraphs() {
         .sort((a, b) => b.count - a.count)
         .slice(0, 3);
 
-    const g9Rows = topSales.map((item, idx) => {
-        return `
-            <div class="bg-black/40 p-1.5 rounded border border-gray-800 flex items-center justify-between">
-                <span class="text-[10px] text-gray-300 truncate">${idx+1}. ${item.name}</span>
-                <span class="text-[9px] font-mono text-cyan-400 bg-cyan-900/30 px-1 rounded">${item.count} Units</span>
-            </div>
-        `;
-    }).join('');
+    const g9Rows = topSales.length > 0 && topSales.some(item => item.count > 0)
+        ? topSales.filter(item => item.count > 0).map((item, idx) => {
+            return `
+                <div class="bg-black/40 p-1.5 rounded border border-gray-800 flex items-center justify-between">
+                    <span class="text-[10px] text-gray-300 truncate">${idx+1}. ${item.name}</span>
+                    <span class="text-[9px] font-mono text-cyan-400 bg-cyan-900/30 px-1 rounded">${item.count} Units</span>
+                </div>
+            `;
+        }).join('')
+        : `<div class="text-center text-gray-600 text-xs italic py-6">No store sales recorded yet.</div>`;
 
     const g9 = `
         <div class="bg-darkSurface border border-gray-800 p-4 rounded-2xl flex flex-col justify-between h-48">

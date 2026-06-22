@@ -53,6 +53,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // ─── CONFIG ───────────────────────────────────────────────
+    match /config/{configId} {
+      allow read, write: if true;
+    }
+
     // ─── FALLBACK — block anything else ───────────────────────
     match /{document=**} {
       allow read, write: if false;

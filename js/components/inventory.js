@@ -15,6 +15,7 @@ if (!window.MOCK_INVENTORY) {
         { id: "PRD-205", name: "Smart Neon Shaker Bottle", category: "gear", price: 450, stock: 8, maxStock: 25, image: "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=300" }
     ];
 }
+window.ORIGINAL_MOCK_INVENTORY = JSON.parse(JSON.stringify(window.MOCK_INVENTORY));
 
 function getInventoryView() {
     return `

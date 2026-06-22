@@ -97,7 +97,7 @@
                 return false;
             }
             try {
-                const [admins, members, trainers, transactions, inventory, orders, attendance, events, broadcasts, leads] = await Promise.all([
+                const [admins, members, trainers, transactions, inventory, orders, attendance, events, broadcasts, leads, statusDoc, plansDoc, feesDoc] = await Promise.all([
                     this.getCollection(COLLECTIONS.admins, 'updatedAt'),
                     this.getCollection(COLLECTIONS.members, 'updatedAt'),
                     this.getCollection(COLLECTIONS.trainers, 'updatedAt'),
@@ -107,47 +107,74 @@
                     this.getCollection(COLLECTIONS.attendance, 'updatedAt'),
                     this.getCollection(COLLECTIONS.events, 'updatedAt'),
                     this.getCollection(COLLECTIONS.broadcasts, 'updatedAt'),
-                    this.getCollection(COLLECTIONS.leads, 'updatedAt')
+                    this.getCollection(COLLECTIONS.leads, 'updatedAt'),
+                    this.getDocument('config', 'status'),
+                    this.getDocument('config', 'gym_plans'),
+                    this.getDocument('config', 'gym_fees')
                 ]);
 
-                const isFirstBoot = members.length === 0 && trainers.length === 0;
-                if (isFirstBoot) {
-                    console.log('[dbService] First boot — auto-seeding Firestore from local data...');
-                    await this._autoSeedInitialData();
-                    const [m2, t2, tx2, inv2, l2, att2] = await Promise.all([
-                        this.getCollection(COLLECTIONS.members, 'updatedAt'),
-                        this.getCollection(COLLECTIONS.trainers, 'updatedAt'),
-                        this.getCollection(COLLECTIONS.transactions, 'updatedAt'),
-                        this.getCollection(COLLECTIONS.inventory, 'updatedAt'),
-                        this.getCollection(COLLECTIONS.leads, 'updatedAt'),
-                        this.getCollection(COLLECTIONS.attendance, 'updatedAt'),
-                    ]);
-                    if (m2.length > 0)   window.MOCK_MEMBERS           = m2;
-                    if (t2.length > 0)   window.MOCK_TRAINERS          = t2;
-                    if (tx2.length > 0)  window.MOCK_TRANSACTIONS      = tx2;
-                    if (inv2.length > 0) window.MOCK_INVENTORY         = inv2;
-                    if (l2.length > 0)   window.MOCK_LEADS             = l2;
-                    if (att2.length > 0) {
-                        window.MEMBER_ATTENDANCE_LOGS = att2.filter(a => a.logType === 'member');
-                        window.TRAINER_ATTENDANCE_LOGS = att2.filter(a => a.logType === 'trainer');
-                    }
-                    console.log('[dbService] Auto-seed complete.');
-                    return true;
+
+
+                if (admins && admins.length > 0) window.ADMINS_LIST = admins;
+                window.MOCK_MEMBERS           = members || [];
+                window.MOCK_TRAINERS          = trainers || [];
+                window.MOCK_TRANSACTIONS      = transactions || [];
+                window.MOCK_INVENTORY         = inventory || [];
+                window.FIGHTER_PRODUCT_ORDERS = orders || [];
+                window.MEMBER_ATTENDANCE_LOGS = attendance ? attendance.filter(a => a.logType === 'member') : [];
+                window.TRAINER_ATTENDANCE_LOGS = attendance ? attendance.filter(a => a.logType === 'trainer') : [];
+                window.GYM_EVENTS             = events || [];
+                window.GYM_BROADCASTS         = broadcasts || [];
+                window.MOCK_LEADS             = leads || [];
+                if (plansDoc && plansDoc.plans) {
+                    window.GYM_PLANS = plansDoc.plans;
+                } else {
+                    const defaultPlans = [
+                        { id: "PLN-1", name: "Monthly Regular Track", fee: 1500, duration: 30 },
+                        { id: "PLN-2", name: "Fighter Half - Quarterly Track", fee: 2500, duration: 90 },
+                        { id: "PLN-3", name: "Fighter Quarterly Track", fee: 7000, duration: 180 },
+                        { id: "PLN-4", name: "Elite Annual Pack", fee: 15000, duration: 365 }
+                    ];
+                    window.GYM_PLANS = defaultPlans;
+                    this.setDocument('config', 'gym_plans', { plans: defaultPlans })
+                        .then(() => console.log('[dbService] Initialized default gym_plans in Firestore'))
+                        .catch(e => console.error('[dbService] Failed to initialize gym_plans:', e));
                 }
 
-                if (admins.length > 0)       window.ADMINS_LIST            = admins;
-                if (members.length > 0)      window.MOCK_MEMBERS           = members;
-                if (trainers.length > 0)     window.MOCK_TRAINERS          = trainers;
-                if (transactions.length > 0) window.MOCK_TRANSACTIONS      = transactions;
-                if (inventory.length > 0)    window.MOCK_INVENTORY         = inventory;
-                if (orders.length > 0)       window.FIGHTER_PRODUCT_ORDERS = orders;
-                if (attendance.length > 0) {
-                    window.MEMBER_ATTENDANCE_LOGS = attendance.filter(a => a.logType === 'member');
-                    window.TRAINER_ATTENDANCE_LOGS = attendance.filter(a => a.logType === 'trainer');
+                if (feesDoc && feesDoc.fees) {
+                    window.GYM_FEES = feesDoc.fees;
+                } else {
+                    const defaultFees = { 
+                        "admissionFee": 1000,
+                        "membership fee": 2500, 
+                        "PT": 15000, 
+                        "diet plan": 2000, 
+                        "supplement": 3500, 
+                        "Events booking": 4500, 
+                        "other": 1000 
+                    };
+                    window.GYM_FEES = defaultFees;
+                    this.setDocument('config', 'gym_fees', { fees: defaultFees })
+                        .then(() => console.log('[dbService] Initialized default gym_fees in Firestore'))
+                        .catch(e => console.error('[dbService] Failed to initialize gym_fees:', e));
                 }
-                if (events.length > 0)       window.GYM_EVENTS             = events;
-                if (broadcasts.length > 0)   window.GYM_BROADCASTS         = broadcasts;
-                if (leads.length > 0)        window.MOCK_LEADS             = leads;
+
+                // Sync Firestore state to LocalStorage to avoid flashing old offline data on load
+                try {
+                    localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+                    localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
+                    localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS));
+                    localStorage.setItem('FIGHTER_ORDERS_DB', JSON.stringify(window.FIGHTER_PRODUCT_ORDERS));
+                    localStorage.setItem('RENEW_MEMBER_ATTENDANCE_DB', JSON.stringify(window.MEMBER_ATTENDANCE_LOGS));
+                    localStorage.setItem('RENEW_TRAINER_ATTENDANCE_DB', JSON.stringify(window.TRAINER_ATTENDANCE_LOGS));
+                    localStorage.setItem('MOCK_LEADS_DB', JSON.stringify(window.MOCK_LEADS));
+                    localStorage.setItem('MOCK_INVENTORY_DB', JSON.stringify(window.MOCK_INVENTORY));
+                    localStorage.setItem('GYM_EVENTS_DB', JSON.stringify(window.GYM_EVENTS));
+                    if (window.GYM_PLANS) localStorage.setItem('GYM_PLANS_DB', JSON.stringify(window.GYM_PLANS));
+                    if (window.GYM_FEES) localStorage.setItem('GYM_FEES_DB', JSON.stringify(window.GYM_FEES));
+                } catch (e) {
+                    console.warn('[dbService] LocalStorage sync failed:', e);
+                }
 
                 window.__FIRESTORE_CACHE = { admins, members, trainers, transactions, inventory, orders, attendance, events, broadcasts, leads };
                 return true;
@@ -196,6 +223,7 @@
             }
             if (window.GYM_PLANS) await safeSet('config', 'gym_plans', { plans: window.GYM_PLANS });
             if (window.GYM_FEES)  await safeSet('config', 'gym_fees',  { fees: window.GYM_FEES });
+            await safeSet('config', 'status', { seeded: true, updatedAt: new Date().toISOString() });
         },
         async syncCollectionToWindow(name, docs) {
             if (name === 'attendance') {
@@ -227,6 +255,12 @@
             window.dbService.init()
                 .then(function () {
                     return window.dbService.bootstrapCaches();
+                })
+                .then(function () {
+                    console.log('[dbService] Bootstrap complete, refreshing view...');
+                    if (typeof window.checkAuthAndNavigate === 'function') {
+                        window.checkAuthAndNavigate();
+                    }
                 })
                 .catch(function (error) {
                     console.warn('Firebase bootstrap error:', error);

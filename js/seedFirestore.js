@@ -95,7 +95,7 @@ window.seedFirestoreData = async function () {
 
     // ─── 2. TRAINERS ─────────────────────────────────────────
     showProgress('📁 Seeding: trainers...');
-    const trainers = window.MOCK_TRAINERS || [];
+    const trainers = window.ORIGINAL_MOCK_TRAINERS || window.MOCK_TRAINERS || [];
     for (const trainer of trainers) {
         const { password, ...safeTrainer } = trainer;
         await safeSet('trainers', safeTrainer.id, safeTrainer);
@@ -103,14 +103,14 @@ window.seedFirestoreData = async function () {
 
     // ─── 3. MEMBERS ──────────────────────────────────────────
     showProgress('📁 Seeding: members...');
-    const members = window.MOCK_MEMBERS || [];
+    const members = window.ORIGINAL_MOCK_MEMBERS || window.MOCK_MEMBERS || [];
     for (const member of members) {
         await safeSet('members', member.id, member);
     }
 
     // ─── 4. TRANSACTIONS ─────────────────────────────────────
     showProgress('📁 Seeding: transactions...');
-    const transactions = window.MOCK_TRANSACTIONS || [];
+    const transactions = window.ORIGINAL_MOCK_TRANSACTIONS || window.MOCK_TRANSACTIONS || [];
     for (const txn of transactions) {
         if (!txn.id) { errorCount++; continue; }
         await safeSet('transactions', txn.id, txn);
@@ -118,21 +118,21 @@ window.seedFirestoreData = async function () {
 
     // ─── 5. INVENTORY ────────────────────────────────────────
     showProgress('📁 Seeding: inventory...');
-    const inventory = window.MOCK_INVENTORY || [];
+    const inventory = window.ORIGINAL_MOCK_INVENTORY || window.MOCK_INVENTORY || [];
     for (const item of inventory) {
         await safeSet('inventory', item.id, item);
     }
 
     // ─── 6. CRM LEADS ────────────────────────────────────────
     showProgress('📁 Seeding: leads...');
-    const leads = window.MOCK_LEADS || [];
+    const leads = window.ORIGINAL_MOCK_LEADS || window.MOCK_LEADS || [];
     for (const lead of leads) {
         await safeSet('leads', lead.id, lead);
     }
 
     // ─── 7. MEMBER ATTENDANCE LOGS ───────────────────────────
     showProgress('📁 Seeding: attendance logs...');
-    const memberAttLogs = window.MEMBER_ATTENDANCE_LOGS || [];
+    const memberAttLogs = window.ORIGINAL_MEMBER_ATTENDANCE_LOGS || window.MEMBER_ATTENDANCE_LOGS || [];
     for (let i = 0; i < memberAttLogs.length; i++) {
         const log = memberAttLogs[i];
         const logId = log.id || `att-m-${log.memberId}-${log.date}-${log.type}-${i}`;
@@ -141,7 +141,7 @@ window.seedFirestoreData = async function () {
 
     // ─── 8. TRAINER ATTENDANCE LOGS ──────────────────────────
     showProgress('📁 Seeding: trainer attendance logs...');
-    const trainerAttLogs = window.TRAINER_ATTENDANCE_LOGS || [];
+    const trainerAttLogs = window.ORIGINAL_TRAINER_ATTENDANCE_LOGS || window.TRAINER_ATTENDANCE_LOGS || [];
     for (let i = 0; i < trainerAttLogs.length; i++) {
         const log = trainerAttLogs[i];
         const logId = log.id || `att-t-${log.trainerId}-${log.date}-${log.type}-${i}`;
@@ -156,6 +156,7 @@ window.seedFirestoreData = async function () {
     if (window.GYM_FEES) {
         await safeSet('config', 'gym_fees', { fees: window.GYM_FEES, updatedAt: new Date().toISOString() });
     }
+    await safeSet('config', 'status', { seeded: true, updatedAt: new Date().toISOString() });
 
     // ─── FINAL RESULT ─────────────────────────────────────────
     const finalMsg = document.getElementById('seed-final-msg');

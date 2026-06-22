@@ -23,7 +23,10 @@ if (savedPlans) {
 }
 
 // আপডেট: এখানেই Admission Fee মেইনটেইন করা হচ্ছে
-if (!window.GYM_FEES) {
+const savedFees = localStorage.getItem('GYM_FEES_DB');
+if (savedFees) {
+    window.GYM_FEES = JSON.parse(savedFees);
+} else if (!window.GYM_FEES) {
     window.GYM_FEES = { 
         "admissionFee": 1000, // এটিই গ্লোবাল ভ্যালু
         "membership fee": 2500, 
@@ -552,6 +555,19 @@ window.submitFeesConfig = function() {
         const input = document.getElementById(`fee-config-${key.replace(/\s+/g, '_')}`);
         if (input) window.GYM_FEES[key] = parseFloat(input.value) || 0;
     });
+
+    // Save to LocalStorage
+    try {
+        localStorage.setItem('GYM_FEES_DB', JSON.stringify(window.GYM_FEES));
+    } catch(e) {}
+
+    // Save to Firestore
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('config', 'gym_fees', { fees: window.GYM_FEES })
+            .then(() => console.log('[Firestore] GYM_FEES saved'))
+            .catch(e => console.error('[Firestore] saveFeesConfig failed:', e.message));
+    }
+
     alert("Rates updated."); window.closeTransactionModal(); renderFinancePage();
 };
 
