@@ -97,7 +97,11 @@
                 return false;
             }
             try {
+<<<<<<< HEAD
                 const [admins, members, trainers, transactions, inventory, orders, attendance, events, broadcasts, leads, statusDoc, plansDoc, feesDoc] = await Promise.all([
+=======
+                const [admins, members, trainers, transactions, inventory, orders, attendance, events, broadcasts, leads] = await Promise.all([
+>>>>>>> b5caced5fd4c062727042191a58b6395e230317d
                     this.getCollection(COLLECTIONS.admins, 'updatedAt'),
                     this.getCollection(COLLECTIONS.members, 'updatedAt'),
                     this.getCollection(COLLECTIONS.trainers, 'updatedAt'),
@@ -107,6 +111,7 @@
                     this.getCollection(COLLECTIONS.attendance, 'updatedAt'),
                     this.getCollection(COLLECTIONS.events, 'updatedAt'),
                     this.getCollection(COLLECTIONS.broadcasts, 'updatedAt'),
+<<<<<<< HEAD
                     this.getCollection(COLLECTIONS.leads, 'updatedAt'),
                     this.getDocument('config', 'status'),
                     this.getDocument('config', 'gym_plans'),
@@ -177,12 +182,40 @@
                 }
 
                 window.__FIRESTORE_CACHE = { admins, members, trainers, transactions, inventory, orders, attendance, events, broadcasts, leads };
+=======
+                    this.getCollection(COLLECTIONS.leads, 'updatedAt')
+                ]);
+
+                window.ADMINS_LIST = admins;
+                window.MOCK_MEMBERS = members;
+                window.MOCK_TRAINERS = trainers;
+                window.MOCK_TRANSACTIONS = transactions;
+                window.MOCK_INVENTORY = inventory;
+                window.FIGHTER_PRODUCT_ORDERS = orders;
+                window.MEMBER_ATTENDANCE_LOGS = attendance;
+                window.GYM_EVENTS = events;
+                window.GYM_BROADCASTS = broadcasts;
+                window.MOCK_LEADS = leads;
+                window.__FIRESTORE_CACHE = {
+                    admins,
+                    members,
+                    trainers,
+                    transactions,
+                    inventory,
+                    orders,
+                    attendance,
+                    events,
+                    broadcasts,
+                    leads
+                };
+>>>>>>> b5caced5fd4c062727042191a58b6395e230317d
                 return true;
             } catch (error) {
                 console.warn('Firestore bootstrap failed, falling back to existing runtime data.', error);
                 return false;
             }
         },
+<<<<<<< HEAD
 
         async _autoSeedInitialData() {
             const safeSet = async (col, id, data) => {
@@ -231,6 +264,9 @@
                 window.TRAINER_ATTENDANCE_LOGS = docs.filter(a => a.logType === 'trainer');
                 return;
             }
+=======
+        async syncCollectionToWindow(name, docs) {
+>>>>>>> b5caced5fd4c062727042191a58b6395e230317d
             const map = {
                 admins: 'ADMINS_LIST',
                 members: 'MOCK_MEMBERS',
@@ -238,6 +274,10 @@
                 transactions: 'MOCK_TRANSACTIONS',
                 inventory: 'MOCK_INVENTORY',
                 orders: 'FIGHTER_PRODUCT_ORDERS',
+<<<<<<< HEAD
+=======
+                attendance: 'MEMBER_ATTENDANCE_LOGS',
+>>>>>>> b5caced5fd4c062727042191a58b6395e230317d
                 events: 'GYM_EVENTS',
                 broadcasts: 'GYM_BROADCASTS',
                 leads: 'MOCK_LEADS'
@@ -256,12 +296,15 @@
                 .then(function () {
                     return window.dbService.bootstrapCaches();
                 })
+<<<<<<< HEAD
                 .then(function () {
                     console.log('[dbService] Bootstrap complete, refreshing view...');
                     if (typeof window.checkAuthAndNavigate === 'function') {
                         window.checkAuthAndNavigate();
                     }
                 })
+=======
+>>>>>>> b5caced5fd4c062727042191a58b6395e230317d
                 .catch(function (error) {
                     console.warn('Firebase bootstrap error:', error);
                 });
