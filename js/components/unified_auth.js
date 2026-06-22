@@ -699,11 +699,7 @@ window.submitAuthRegister = async function() {
             return;
         }
 
-<<<<<<< HEAD
         const newAdmin = { id: phone, name, email, phone, password: pass, role: 'admin' };
-=======
-        const newAdmin = { id: phone, name, email, phone, password: pass };
->>>>>>> b5caced5fd4c062727042191a58b6395e230317d
         window.ADMINS_LIST = Array.isArray(window.ADMINS_LIST) ? [...window.ADMINS_LIST, newAdmin] : [newAdmin];
 
         // Save to Firestore
@@ -711,7 +707,6 @@ window.submitAuthRegister = async function() {
         try {
             if (window.dbService && typeof window.dbService.setDocument === 'function') {
                 await window.dbService.setDocument('admins', newAdmin.id, newAdmin);
-<<<<<<< HEAD
                 firestoreOk = true;
                 console.log('[Firestore] Admin saved:', newAdmin.id);
             } else {
@@ -723,11 +718,6 @@ window.submitAuthRegister = async function() {
 
         // Fallback to localStorage
         try { localStorage.setItem('RENEW_ADMINS_DB', JSON.stringify(window.ADMINS_LIST)); } catch(e) {}
-=======
-            }
-            localStorage.setItem('RENEW_ADMINS_DB', JSON.stringify(window.ADMINS_LIST));
-        } catch(e) {}
->>>>>>> b5caced5fd4c062727042191a58b6395e230317d
 
         if (bulb) bulb.classList.add('granted');
         const adminMsg = firestoreOk

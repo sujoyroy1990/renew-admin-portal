@@ -604,19 +604,33 @@ window.trainerCheckInShift = function() {
     
     loggedInTrainer.todayAttendance.checkIn = timeStr;
 
-    if (!window.TRAINER_ATTENDANCE_LOGS) window.TRAINER_ATTENDANCE_LOGS = [];
-    window.TRAINER_ATTENDANCE_LOGS.push({
+    const newLog = {
         trainerId: loggedInTrainer.id,
         trainerName: loggedInTrainer.name,
         type: "check-in",
         date: todayStr,
         time: timeFormatted
-    });
+    };
+
+    if (!window.TRAINER_ATTENDANCE_LOGS) window.TRAINER_ATTENDANCE_LOGS = [];
+    window.TRAINER_ATTENDANCE_LOGS.push(newLog);
+
+    const index = window.MOCK_TRAINERS.findIndex(t => t.id === loggedInTrainer.id);
+    if (index !== -1) {
+        window.MOCK_TRAINERS[index] = loggedInTrainer;
+    }
 
     try {
         localStorage.setItem('RENEW_TRAINER_ATTENDANCE_DB', JSON.stringify(window.TRAINER_ATTENDANCE_LOGS));
         localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
     } catch(e) {}
+
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('trainers', loggedInTrainer.id, loggedInTrainer)
+            .catch(e => console.error('[Firestore] Trainer check-in status write failed:', e.message));
+        window.dbService.addDocument('attendance', { ...newLog, logType: 'trainer' }, loggedInTrainer.id)
+            .catch(e => console.error('[Firestore] Trainer check-in attendance write failed:', e.message));
+    }
 
     alert(`⚡ SHIFT SIGN-IN:\nGood day! Shift started successfully at ${timeStr}.`);
     navigateTo('trainer-portal');
@@ -631,19 +645,33 @@ window.trainerCheckOutShift = function() {
     
     loggedInTrainer.todayAttendance.checkOut = timeStr;
 
-    if (!window.TRAINER_ATTENDANCE_LOGS) window.TRAINER_ATTENDANCE_LOGS = [];
-    window.TRAINER_ATTENDANCE_LOGS.push({
+    const newLog = {
         trainerId: loggedInTrainer.id,
         trainerName: loggedInTrainer.name,
         type: "check-out",
         date: todayStr,
         time: timeFormatted
-    });
+    };
+
+    if (!window.TRAINER_ATTENDANCE_LOGS) window.TRAINER_ATTENDANCE_LOGS = [];
+    window.TRAINER_ATTENDANCE_LOGS.push(newLog);
+
+    const index = window.MOCK_TRAINERS.findIndex(t => t.id === loggedInTrainer.id);
+    if (index !== -1) {
+        window.MOCK_TRAINERS[index] = loggedInTrainer;
+    }
 
     try {
         localStorage.setItem('RENEW_TRAINER_ATTENDANCE_DB', JSON.stringify(window.TRAINER_ATTENDANCE_LOGS));
         localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
     } catch(e) {}
+
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('trainers', loggedInTrainer.id, loggedInTrainer)
+            .catch(e => console.error('[Firestore] Trainer check-out status write failed:', e.message));
+        window.dbService.addDocument('attendance', { ...newLog, logType: 'trainer' }, loggedInTrainer.id)
+            .catch(e => console.error('[Firestore] Trainer check-out attendance write failed:', e.message));
+    }
 
     alert(`🛑 SHIFT SIGN-OUT:\nDuty completed. Shift ended successfully at ${timeStr}.`);
     navigateTo('trainer-portal');
@@ -662,6 +690,11 @@ window.trainerStartNextShift = function() {
         try {
             localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
         } catch(e) {}
+        
+        if (window.dbService && typeof window.dbService.setDocument === 'function') {
+            window.dbService.setDocument('trainers', loggedInTrainer.id, loggedInTrainer)
+                .catch(e => console.error('[Firestore] Trainer reset shift write failed:', e.message));
+        }
         
         navigateTo('trainer-portal');
     }
@@ -731,6 +764,11 @@ window.saveTrainerPortalProfile = function() {
         console.error("Failed to save trainer details to RENEW_TRAINERS_DB", e);
     }
 
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('trainers', loggedInTrainer.id, loggedInTrainer)
+            .catch(e => console.error('[Firestore] Trainer profile write failed:', e.message));
+    }
+
     alert("✅ Profile configuration saved successfully!");
     navigateTo('trainer-portal');
 };
@@ -744,6 +782,11 @@ window.toggleFormUpload = function(memberId) {
     try {
         localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
     } catch(e) {}
+
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('members', member.id, member)
+            .catch(e => console.error('[Firestore] Form upload status write failed:', e.message));
+    }
 
     alert(`Success: Assessment status for ${member.name} updated to ${member.formUploaded ? 'Uploaded (Green)' : 'Pending (Red)'}.`);
     navigateTo('trainer-portal');
@@ -1207,6 +1250,11 @@ window.saveAssessmentForm = function(memberId) {
         localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
     } catch(e) {}
 
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('members', member.id, member)
+            .catch(e => console.error('[Firestore] Assessment form write failed:', e.message));
+    }
+
     alert(`✅ Success: Assessment data saved for ${member.name}. status badge set to Uploaded.`);
     window.closeTrainerModal();
     navigateTo('trainer-portal');
@@ -1310,6 +1358,11 @@ window.saveWorkoutRoutine = function(memberId) {
         } catch(e) {}
     }
 
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('members', member.id, member)
+            .catch(e => console.error('[Firestore] Workout routine write failed:', e.message));
+    }
+
     alert(`Workout routine for ${member.name} updated successfully.`);
     window.closeTrainerModal();
     navigateTo('trainer-portal');
@@ -1376,6 +1429,11 @@ window.saveDietChart = function(memberId) {
     try {
         localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
     } catch(e) {}
+
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('members', member.id, member)
+            .catch(e => console.error('[Firestore] Diet chart write failed:', e.message));
+    }
 
     alert(`Diet chart for ${member.name} updated successfully.`);
     window.closeTrainerModal();

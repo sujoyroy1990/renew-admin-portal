@@ -479,12 +479,15 @@ window.assignTrainerToMember = function(memberId, selectedTrainerId) {
     if (!member) return;
 
     const trainers = window.MOCK_TRAINERS || [];
+    let oldTrainer = null;
 
     // 1. Remove from OLD trainer's assignedFighterIds
     if (member.trainerId) {
-        const oldTrainer = trainers.find(t => t.id === member.trainerId);
+        oldTrainer = trainers.find(t => t.id === member.trainerId);
         if (oldTrainer && oldTrainer.assignedFighterIds) {
             oldTrainer.assignedFighterIds = oldTrainer.assignedFighterIds.filter(id => id !== memberId);
+            oldTrainer.kpis = oldTrainer.kpis || {};
+            oldTrainer.kpis.totalAssigned = oldTrainer.assignedFighterIds.length;
         }
     }
 
@@ -514,6 +517,9 @@ window.assignTrainerToMember = function(memberId, selectedTrainerId) {
     // Firestore save (fire-and-forget)
     if (window.dbService && window.dbService.setDocument) {
         window.dbService.setDocument('members', member.id, member).catch(e => console.error('[Firestore] assignTrainer member:', e.message));
+        if (oldTrainer) {
+            window.dbService.setDocument('trainers', oldTrainer.id, oldTrainer).catch(e => console.error('[Firestore] assignTrainer oldTrainer:', e.message));
+        }
         if (selectedTrainerId) {
             const newTrainer = (window.MOCK_TRAINERS || []).find(t => t.id === selectedTrainerId);
             if (newTrainer) window.dbService.setDocument('trainers', newTrainer.id, newTrainer).catch(e => console.error('[Firestore] assignTrainer trainer:', e.message));
