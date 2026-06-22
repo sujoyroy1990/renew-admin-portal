@@ -208,10 +208,16 @@ window.simulateMemberScan = function(memberId) {
         });
     }
 
-    try {
-        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
-        localStorage.setItem('RENEW_MEMBER_ATTENDANCE_DB', JSON.stringify(window.MEMBER_ATTENDANCE_LOGS));
-    } catch(e) {}
+    // Save to localStorage + Firestore
+    try { localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS)); } catch(e) {}
+    try { localStorage.setItem('RENEW_MEMBER_ATTENDANCE_DB', JSON.stringify(window.MEMBER_ATTENDANCE_LOGS)); } catch(e) {}
+
+    // Firestore async save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        const attLog = window.MEMBER_ATTENDANCE_LOGS[window.MEMBER_ATTENDANCE_LOGS.length - 1];
+        window.dbService.setDocument('members', member.id, member).catch(e => console.error('[Firestore] member scan save failed:', e.message));
+        if (attLog) window.dbService.addDocument('attendance', attLog, member.id).catch(e => console.error('[Firestore] attendance save failed:', e.message));
+    }
 
     window.closeTransactionModal();
     renderMembersPage(); 
@@ -268,7 +274,17 @@ window.submitPlanChange = function(memberId) {
         });
     }
 
+    // Transaction save
+    const newTxn = window.MOCK_TRANSACTIONS[0]; // the one we just unshifted
+
     alert(`✅ PLAN UPGRADED!\n\n${member.name} is now on the [${newPlanName}].\n💸 A new pending invoice of ₹${newFee} has been auto-generated in the Finance ledger.`);
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('members', member.id, member).catch(e => console.error('[Firestore] plan change member:', e.message));
+        if (newTxn) window.dbService.setDocument('transactions', newTxn.id, newTxn).catch(e => console.error('[Firestore] plan change txn:', e.message));
+    }
+
     window.closeTransactionModal();
     renderMembersPage();
 };
@@ -297,6 +313,14 @@ window.collectMemberDue = function(memberName, amount) {
         }
     }
     alert(`Success: Collected ₹${amount}. Portal unlocked.`);
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument && member) {
+        const paidTxns = (window.MOCK_TRANSACTIONS || []).filter(t => t.description && t.description.toLowerCase().includes(memberName.toLowerCase()) && t.status === 'paid');
+        window.dbService.setDocument('members', member.id, member).catch(e => console.error('[Firestore] collectDue member:', e.message));
+        paidTxns.forEach(t => window.dbService.setDocument('transactions', t.id, t).catch(e => console.error('[Firestore] collectDue txn:', e.message)));
+    }
+
     renderMembersPage();
 };
 
@@ -481,18 +505,26 @@ window.assignTrainerToMember = function(memberId, selectedTrainerId) {
         }
     }
 
-    // 4. Persist both to localStorage
+    // Persist both
     try {
         localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
         localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
     } catch(e) {}
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('members', member.id, member).catch(e => console.error('[Firestore] assignTrainer member:', e.message));
+        if (selectedTrainerId) {
+            const newTrainer = (window.MOCK_TRAINERS || []).find(t => t.id === selectedTrainerId);
+            if (newTrainer) window.dbService.setDocument('trainers', newTrainer.id, newTrainer).catch(e => console.error('[Firestore] assignTrainer trainer:', e.message));
+        }
+    }
 
     let successMessage = `Success! ${member.name} has been unassigned from personal training.`;
     if (selectedTrainerId) {
         const trainer = trainers.find(t => t.id === selectedTrainerId);
         successMessage = `Authorized! ${member.name} has been successfully assigned to coach ${trainer ? trainer.name : 'Trainer'}.`;
     }
-
     alert(successMessage);
     renderMembersPage();
     window.openMemberProfile(memberId);
@@ -526,6 +558,13 @@ window.collectDietChartPayment = function(memberId) {
         localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS));
     } catch (e) {
         console.error("Failed to save diet chart payment details", e);
+    }
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        const dietTxn = window.MOCK_TRANSACTIONS[0];
+        window.dbService.setDocument('members', member.id, member).catch(e => console.error('[Firestore] dietChart member:', e.message));
+        if (dietTxn) window.dbService.setDocument('transactions', dietTxn.id, dietTxn).catch(e => console.error('[Firestore] dietChart txn:', e.message));
     }
 
     alert(`✅ Payment Collected!\n\n₹${dietFee} recorded for ${member.name}.\nTrainer assigned will receive a 10% commission of ₹${dietFee * 0.1}.`);

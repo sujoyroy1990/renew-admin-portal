@@ -86,8 +86,8 @@ function renderLiveStatusTracking() {
     const container = document.getElementById('live-scan-container'); 
     if (!container) return;
 
-    const presentMembers = MOCK_MEMBERS.filter(m => m.checkedInToday);
-    const expiringMembers = MOCK_MEMBERS.filter(m => m.status === 'expiring' || m.status === 'at_risk');
+    const presentMembers = (window.MOCK_MEMBERS || []).filter(m => m.checkedInToday);
+    const expiringMembers = (window.MOCK_MEMBERS || []).filter(m => m.status === 'expiring' || m.status === 'at_risk');
 
     const tableHeaders = currentDashboardTab === 'present' 
         ? `<th class="py-3 px-4">Member</th><th class="py-3 px-4">In Time</th><th class="py-3 px-4">Out Time</th><th class="py-3 px-4">Live Status</th>`

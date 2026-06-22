@@ -411,7 +411,7 @@ function getTrainerPortalView() {
                             </div>
                             <div>
                                 <label class="text-gray-500 text-[10px] uppercase font-bold block mb-1">Phone Number</label>
-                                <input type="text" id="edit-t-phone" value="${t.phone}" class="w-full bg-black/50 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-gray-300 focus:border-indigo-500 outline-none">
+                                <input type="text" id="edit-t-phone" value="${t.phone}" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-gray-300 focus:border-indigo-500 outline-none">
                             </div>
                         </div>
 

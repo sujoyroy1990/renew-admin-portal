@@ -88,7 +88,7 @@ function renderTrainersPage() {
         const stars = '★'.repeat(Math.round(t.kpis.satisfaction)) + '☆'.repeat(5 - Math.round(t.kpis.satisfaction));
         const address = t.address || "Birati, Kolkata";
         const joiningDate = t.joiningDate || "12 Jan 2024";
-        const assignedFighters = MOCK_MEMBERS.filter(m => m.trainerId === t.id).map(m => m.name);
+        const assignedFighters = (window.MOCK_MEMBERS || []).filter(m => m.trainerId === t.id).map(m => m.name);
 
         const liveSales = calculateTrainerSales(t.id);
 
@@ -308,7 +308,7 @@ window.openTrainerActionModal = function (trainerId, actionType) {
                             </div>
                             <div>
                                 <label class="text-gray-500 text-[10px] uppercase font-bold block mb-1">Phone Number</label>
-                                <input type="text" id="new-t-phone" placeholder="+91 98300XXXXX" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-2.5 text-xs text-gray-300 focus:border-indigo-500 outline-none">
+                                <input type="text" id="new-t-phone" placeholder="98300XXXXX" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-2.5 text-xs text-gray-300 focus:border-indigo-500 outline-none">
                             </div>
                         </div>
 
@@ -419,7 +419,7 @@ window.openTrainerActionModal = function (trainerId, actionType) {
                         <input type="text" id="new-t-name" placeholder="Full Name" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
                         <div class="grid grid-cols-2 gap-4">
                             <input type="email" id="new-t-email" placeholder="Email" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
-                            <input type="text" id="new-t-phone" placeholder="Phone" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
+                            <input type="text" id="new-t-phone" placeholder="Phone" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
                         </div>
                         <select id="new-t-specialty" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
                             <option>MMA & Kickboxing</option><option>Bodybuilding</option>
@@ -466,10 +466,12 @@ window.toggleTrainerStatus = function(trainerId) {
         alert(`Trainer "${trainer.name}" has been blocked. They will no longer be able to log in to the trainer portal.`);
     }
 
-    try {
-        localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(trainers));
-    } catch (e) {
-        console.error("Failed to persist trainers status", e);
+    try { localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(trainers)); } catch (e) {}
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('trainers', trainer.id, trainer)
+            .catch(e => console.error('[Firestore] toggleTrainerStatus failed:', e.message));
     }
 
     renderTrainersPage();

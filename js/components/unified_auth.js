@@ -108,7 +108,7 @@ function getUnifiedLoginView() {
                     <div class="space-y-3.5" id="recovery-step-1">
                         <div>
                             <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider" id="recovery-phone-label">Registered Phone Number</label>
-                            <input type="text" id="recovery-phone-input" placeholder="e.g. 9876543210" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-3 text-white text-xs mt-1 focus:outline-none transition-colors font-mono">
+                            <input type="text" id="recovery-phone-input" placeholder="e.g. 9876543210" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-3 text-white text-xs mt-1 focus:outline-none transition-colors font-mono">
                             <div class="underline-green"></div>
                         </div>
                         <button onclick="window.submitRecoveryPhone()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-3 rounded-xl uppercase tracking-widest text-xs shadow-lg hover:shadow-indigo-500/10 transition-all mt-4">
@@ -192,7 +192,7 @@ function getUnifiedLoginView() {
                         </div>
                         <div>
                             <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Admin Phone (Unique ID)</label>
-                            <input type="text" id="reg-admin-phone" placeholder="e.g. 9999999999" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none transition-colors font-mono">
+                            <input type="text" id="reg-admin-phone" placeholder="e.g. 9999999999" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none transition-colors font-mono">
                             <div class="underline-cyan"></div>
                         </div>
                         <div>
@@ -222,7 +222,7 @@ function getUnifiedLoginView() {
                             </div>
                             <div>
                                 <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">WhatsApp Phone (Unique ID)</label>
-                                <input type="text" id="reg-trainer-phone" placeholder="9876543212" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none font-mono">
+                                <input type="text" id="reg-trainer-phone" placeholder="9876543212" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none font-mono">
                                 <div class="underline-cyan"></div>
                             </div>
                         </div>
@@ -260,7 +260,7 @@ function getUnifiedLoginView() {
                             </div>
                             <div>
                                 <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">WhatsApp Phone (Unique ID)</label>
-                                <input type="text" id="reg-fighter-phone" placeholder="+91 XXXXX XXXXX" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none font-mono">
+                                <input type="text" id="reg-fighter-phone" placeholder="98300XXXXX" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none font-mono">
                                 <div class="underline-cyan"></div>
                             </div>
                         </div>
@@ -535,8 +535,24 @@ function typeTerminalText(text, isError, callback) {
     }, 40);
 }
 
+async function refreshAuthCache() {
+    if (window.dbService && typeof window.dbService.bootstrapCaches === 'function') {
+        try {
+            await window.dbService.bootstrapCaches();
+        } catch (e) {
+            console.warn('Auth cache refresh failed:', e);
+        }
+    }
+
+    return {
+        admins: Array.isArray(window.ADMINS_LIST) ? window.ADMINS_LIST : [],
+        trainers: Array.isArray(window.MOCK_TRAINERS) ? window.MOCK_TRAINERS : [],
+        members: Array.isArray(window.MOCK_MEMBERS) ? window.MOCK_MEMBERS : []
+    };
+}
+
 // LOGIN LOGIC WITH TERMINAL BULB FEEDBACK
-window.submitAuthLogin = function() {
+window.submitAuthLogin = async function() {
     const inputId = document.getElementById('login-id-input').value.trim();
     const inputPass = document.getElementById('login-password-input').value.trim();
 
@@ -549,9 +565,16 @@ window.submitAuthLogin = function() {
         return;
     }
 
+    const authData = await refreshAuthCache();
+
     if (activeRoleTab === 'admin') {
-        const admins = window.ADMINS_LIST || [];
-        const adminUser = admins.find(a => phoneMatch(a.phone, inputId) || a.id.toLowerCase() === inputId.toLowerCase());
+        const admins = authData.admins || [];
+        const adminUser = admins.find(a => {
+            const idMatch = a && a.id && a.id.toLowerCase() === inputId.toLowerCase();
+            const phoneMatchValue = phoneMatch(a.phone, inputId);
+            const emailMatchValue = a && a.email && a.email.toLowerCase() === inputId.toLowerCase();
+            return phoneMatchValue || idMatch || emailMatchValue;
+        });
         
         if (!adminUser) {
             if (bulb) bulb.classList.add('denied');
@@ -570,15 +593,20 @@ window.submitAuthLogin = function() {
         typeTerminalText("ACCESS GRANTED. DEPLOYING ADMIN SESSION...", false, () => {
             setTimeout(() => {
                 localStorage.setItem('RENEW_LOGGED_IN_ROLE', 'admin');
-                localStorage.setItem('RENEW_LOGGED_IN_USER_ID', adminUser.id);
+                localStorage.setItem('RENEW_LOGGED_IN_USER_ID', adminUser.id || adminUser.phone);
                 window.loggedInRole = 'admin';
                 window.checkAuthAndNavigate();
             }, 1000);
         });
         
     } else if (activeRoleTab === 'trainer') {
-        const trainers = window.MOCK_TRAINERS || [];
-        const matched = trainers.find(t => phoneMatch(t.phone, inputId) || t.id.toLowerCase() === inputId.toLowerCase() || t.email.toLowerCase() === inputId.toLowerCase());
+        const trainers = authData.trainers || [];
+        const matched = trainers.find(t => {
+            const idMatch = t && t.id && t.id.toLowerCase() === inputId.toLowerCase();
+            const phoneMatchValue = phoneMatch(t.phone, inputId);
+            const emailMatchValue = t && t.email && t.email.toLowerCase() === inputId.toLowerCase();
+            return phoneMatchValue || idMatch || emailMatchValue;
+        });
 
         if (!matched) {
             if (bulb) bulb.classList.add('denied');
@@ -617,8 +645,12 @@ window.submitAuthLogin = function() {
         });
 
     } else if (activeRoleTab === 'fighter') {
-        const members = window.MOCK_MEMBERS || [];
-        const matched = members.find(m => phoneMatch(m.phone, inputId) || m.id.toLowerCase() === inputId.toLowerCase());
+        const members = authData.members || [];
+        const matched = members.find(m => {
+            const idMatch = m && m.id && m.id.toLowerCase() === inputId.toLowerCase();
+            const phoneMatchValue = phoneMatch(m.phone, inputId);
+            return phoneMatchValue || idMatch;
+        });
 
         if (!matched) {
             if (bulb) bulb.classList.add('denied');
@@ -640,7 +672,7 @@ window.submitAuthLogin = function() {
 };
 
 // REGISTRATION SIGNUP LOGIC
-window.submitAuthRegister = function() {
+window.submitAuthRegister = async function() {
     const bulb = document.getElementById('bulb');
     if (bulb) bulb.className = 'bulb';
 
@@ -656,6 +688,8 @@ window.submitAuthRegister = function() {
             return;
         }
 
+        await refreshAuthCache();
+
         // Check duplicate phone across all segments
         if ((window.ADMINS_LIST || []).some(a => phoneMatch(a.phone, phone)) ||
             (window.MOCK_TRAINERS || []).some(t => phoneMatch(t.phone, phone)) ||
@@ -665,15 +699,31 @@ window.submitAuthRegister = function() {
             return;
         }
 
-        const newAdmin = { id: phone, name, email, phone, password: pass };
-        window.ADMINS_LIST.push(newAdmin);
+        const newAdmin = { id: phone, name, email, phone, password: pass, role: 'admin' };
+        window.ADMINS_LIST = Array.isArray(window.ADMINS_LIST) ? [...window.ADMINS_LIST, newAdmin] : [newAdmin];
 
+        // Save to Firestore
+        let firestoreOk = false;
         try {
-            localStorage.setItem('RENEW_ADMINS_DB', JSON.stringify(window.ADMINS_LIST));
-        } catch(e) {}
+            if (window.dbService && typeof window.dbService.setDocument === 'function') {
+                await window.dbService.setDocument('admins', newAdmin.id, newAdmin);
+                firestoreOk = true;
+                console.log('[Firestore] Admin saved:', newAdmin.id);
+            } else {
+                console.warn('[Firestore] dbService not ready.');
+            }
+        } catch(e) {
+            console.error('[Firestore] Admin write failed:', e.code, e.message);
+        }
+
+        // Fallback to localStorage
+        try { localStorage.setItem('RENEW_ADMINS_DB', JSON.stringify(window.ADMINS_LIST)); } catch(e) {}
 
         if (bulb) bulb.classList.add('granted');
-        typeTerminalText("SUCCESS: ADMIN REGISTERED. REDIRECTING...", false, () => {
+        const adminMsg = firestoreOk
+            ? "SUCCESS: ADMIN REGISTERED & SAVED TO DATABASE. REDIRECTING..."
+            : "SUCCESS: ADMIN REGISTERED (LOCAL). REDIRECTING...";
+        typeTerminalText(adminMsg, false, () => {
             setTimeout(() => {
                 window.switchAuthMode('login');
             }, 1200);
@@ -721,13 +771,29 @@ window.submitAuthRegister = function() {
         };
 
         window.MOCK_TRAINERS.push(newTrainer);
-        
+
+        // Save to Firestore
+        let trainerFirestoreOk = false;
         try {
-            localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
-        } catch(e) {}
+            if (window.dbService && typeof window.dbService.setDocument === 'function') {
+                await window.dbService.setDocument('trainers', newTrainer.id, newTrainer);
+                trainerFirestoreOk = true;
+                console.log('[Firestore] Trainer saved:', newTrainer.id);
+            } else {
+                console.warn('[Firestore] dbService not ready.');
+            }
+        } catch(e) {
+            console.error('[Firestore] Trainer write failed:', e.code, e.message);
+        }
+
+        // Fallback to localStorage
+        try { localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS)); } catch(e) {}
 
         if (bulb) bulb.classList.add('granted');
-        typeTerminalText("SUCCESS: TRAINER REGISTERED. REDIRECTING...", false, () => {
+        const trainerMsg = trainerFirestoreOk
+            ? "SUCCESS: TRAINER REGISTERED & SAVED TO DATABASE. REDIRECTING..."
+            : "SUCCESS: TRAINER REGISTERED (LOCAL). REDIRECTING...";
+        typeTerminalText(trainerMsg, false, () => {
             setTimeout(() => {
                 window.switchAuthMode('login');
             }, 1200);
@@ -782,8 +848,8 @@ window.submitAuthRegister = function() {
         window.MOCK_MEMBERS.push(newFighter);
 
         if (!window.MOCK_TRANSACTIONS) window.MOCK_TRANSACTIONS = [];
-        
-        window.MOCK_TRANSACTIONS.unshift({
+
+        const txnAdmission = {
             id: `TXN-${Date.now().toString().slice(-4)}-AD`,
             type: "income",
             category: "admission",
@@ -791,9 +857,8 @@ window.submitAuthRegister = function() {
             date: new Date().toISOString().slice(0,10),
             status: "pending",
             description: `Admission Fee - ${name}`
-        });
-
-        window.MOCK_TRANSACTIONS.unshift({
+        };
+        const txnPlan = {
             id: `TXN-${Date.now().toString().slice(-4)}-PF`,
             type: "income",
             category: "advance fee",
@@ -802,15 +867,37 @@ window.submitAuthRegister = function() {
             status: "pending",
             description: `Advance Membership Fee (${planName}) - ${name}`,
             portalLocked: true
-        });
+        };
+        window.MOCK_TRANSACTIONS.unshift(txnAdmission);
+        window.MOCK_TRANSACTIONS.unshift(txnPlan);
 
+        // Save to Firestore
+        let fighterFirestoreOk = false;
+        try {
+            if (window.dbService && typeof window.dbService.setDocument === 'function') {
+                await window.dbService.setDocument('members', newFighter.id, newFighter);
+                await window.dbService.setDocument('transactions', txnAdmission.id, txnAdmission);
+                await window.dbService.setDocument('transactions', txnPlan.id, txnPlan);
+                fighterFirestoreOk = true;
+                console.log('[Firestore] Fighter & transactions saved:', newFighter.id);
+            } else {
+                console.warn('[Firestore] dbService not ready.');
+            }
+        } catch(e) {
+            console.error('[Firestore] Fighter write failed:', e.code, e.message);
+        }
+
+        // Fallback to localStorage
         try {
             localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
             localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS));
         } catch(e) {}
 
         if (bulb) bulb.classList.add('granted');
-        typeTerminalText(`SUCCESS: REGISTRATION REGISTERED. TOTAL DUE: ₹${totalDue}...`, false, () => {
+        const fighterMsg = fighterFirestoreOk
+            ? `SUCCESS: FIGHTER REGISTERED & SAVED TO DATABASE. TOTAL DUE: ₹${totalDue}...`
+            : `SUCCESS: FIGHTER REGISTERED (LOCAL). TOTAL DUE: ₹${totalDue}...`;
+        typeTerminalText(fighterMsg, false, () => {
             setTimeout(() => {
                 window.switchAuthMode('login');
             }, 1500);

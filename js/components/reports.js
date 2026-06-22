@@ -87,8 +87,20 @@ function generateReportItem(id, title) {
     `;
 }
 
+async function refreshReportsData() {
+    if (window.dbService && typeof window.dbService.bootstrapCaches === 'function') {
+        try {
+            await window.dbService.bootstrapCaches();
+        } catch (error) {
+            console.warn('Reports refresh failed, using current runtime data.', error);
+        }
+    }
+}
+
 function renderReportsPage() {
-    render10VisualGraphs();
+    refreshReportsData().finally(() => {
+        render10VisualGraphs();
+    });
 }
 
 // =========================================================================
@@ -486,25 +498,26 @@ window.downloadCSV = function(filename, headers, rows) {
 };
 
 window.downloadMicroReport = function(id, title) {
-    if (id === 'OPS-04') {
-        openTrainerAttendanceReportModal();
-        return;
-    }
-    if (id === 'MEM-06') {
-        openMemberAttendanceReportModal();
-        return;
-    }
+    const runReport = () => {
+        if (id === 'OPS-04') {
+            openTrainerAttendanceReportModal();
+            return;
+        }
+        if (id === 'MEM-06') {
+            openMemberAttendanceReportModal();
+            return;
+        }
 
-    let headers = [];
-    let rows = [];
+        let headers = [];
+        let rows = [];
 
-    const txns = window.MOCK_TRANSACTIONS || [];
-    const members = window.MOCK_MEMBERS || [];
-    const leads = window.MOCK_LEADS || [];
-    const inventory = window.MOCK_INVENTORY || [];
-    const trainers = window.MOCK_TRAINERS || [];
+        const txns = window.MOCK_TRANSACTIONS || [];
+        const members = window.MOCK_MEMBERS || [];
+        const leads = window.MOCK_LEADS || [];
+        const inventory = window.MOCK_INVENTORY || [];
+        const trainers = window.MOCK_TRAINERS || [];
 
-    switch(id) {
+        switch(id) {
         case 'FIN-01': // Daily Shift Closing Balance
             headers = ["Date", "Total Income (₹)", "Total Expense (₹)", "Closing Balance (₹)"];
             const dailyMap = {};
@@ -733,8 +746,17 @@ window.downloadMicroReport = function(id, title) {
             break;
     }
 
-    const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, "_");
-    window.downloadCSV(`RENEW_${id}_${cleanTitle}`, headers, rows);
+            const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, "_");
+            window.downloadCSV(`RENEW_${id}_${cleanTitle}`, headers, rows);
+        };
+
+    if (window.dbService && typeof window.dbService.bootstrapCaches === 'function') {
+        window.dbService.bootstrapCaches()
+            .then(runReport)
+            .catch(runReport);
+    } else {
+        runReport();
+    }
 };
 
 function openTrainerAttendanceReportModal() {

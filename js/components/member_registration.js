@@ -27,7 +27,7 @@ function getMemberRegistrationView() {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] text-gray-500 uppercase font-bold">WhatsApp Number</label>
-                        <input type="text" id="reg-phone" placeholder="+91 XXXXX XXXXX" class="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-3 text-white mt-1 focus:border-brandRed outline-none">
+                        <input type="text" id="reg-phone" placeholder="98300XXXXX" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-3 text-white mt-1 focus:border-brandRed outline-none">
                     </div>
                     <div>
                         <label class="text-[10px] text-gray-500 uppercase font-bold">Date of Birth</label>
@@ -128,8 +128,7 @@ window.submitNewRegistration = function() {
 
     window.MOCK_MEMBERS.push(newMember);
 
-    // ১. অ্যাডমিশন ফি এন্ট্রি
-    window.MOCK_TRANSACTIONS.unshift({
+    const txnAdm = {
         id: `TXN-${Date.now().toString().slice(-4)}-AD`,
         type: "income",
         category: "admission",
@@ -137,10 +136,8 @@ window.submitNewRegistration = function() {
         date: new Date().toISOString().slice(0,10),
         status: "pending",
         description: `Admission Fee - ${name}`
-    });
-
-    // ২. মান্থলি অ্যাডভান্স ফি এন্ট্রি
-    window.MOCK_TRANSACTIONS.unshift({
+    };
+    const txnPlan = {
         id: `TXN-${Date.now().toString().slice(-4)}-PF`,
         type: "income",
         category: "advance fee",
@@ -149,12 +146,29 @@ window.submitNewRegistration = function() {
         status: "pending",
         description: `Advance Membership Fee (${planName}) - ${name}`,
         portalLocked: true
-    });
+    };
+
+    // ১. অ্যাডমিশন ফি এন্ট্রি
+    window.MOCK_TRANSACTIONS.unshift(txnAdm);
+    // ২. মান্থলি অ্যাডভান্স ফি এন্ট্রি
+    window.MOCK_TRANSACTIONS.unshift(txnPlan);
 
     try {
         localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
         localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS));
     } catch(e) {}
-    alert(`✅ Registration Successful!\nTotal Due: ₹${totalDue} (Admission: ₹${ADMISSION_FEE} + Plan: ₹${planFee}).`);
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('members', newMember.id, newMember)
+            .then(() => console.log('[Firestore] Member registration saved:', newMember.id))
+            .catch(e => console.error('[Firestore] member_registration member:', e.message));
+        window.dbService.setDocument('transactions', txnAdm.id, txnAdm)
+            .catch(e => console.error('[Firestore] member_registration txnAdm:', e.message));
+        window.dbService.setDocument('transactions', txnPlan.id, txnPlan)
+            .catch(e => console.error('[Firestore] member_registration txnPlan:', e.message));
+    }
+
+    alert(`\u2705 Registration Successful!\nTotal Due: \u20b9${totalDue} (Admission: \u20b9${ADMISSION_FEE} + Plan: \u20b9${planFee}).`);
     navigateTo('finance'); 
 };

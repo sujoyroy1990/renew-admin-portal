@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── ADMINS ───────────────────────────────────────────────
+    // Open write for registration (no auth required yet)
+    match /admins/{adminId} {
+      allow read, write: if true;
+    }
+
+    // ─── MEMBERS ──────────────────────────────────────────────
+    match /members/{memberId} {
+      allow read, write: if true;
+    }
+
+    // ─── TRAINERS ─────────────────────────────────────────────
+    match /trainers/{trainerId} {
+      allow read, write: if true;
+    }
+
+    // ─── TRANSACTIONS ─────────────────────────────────────────
+    match /transactions/{transactionId} {
+      allow read, write: if true;
+    }
+
+    // ─── INVENTORY ────────────────────────────────────────────
+    match /inventory/{productId} {
+      allow read, write: if true;
+    }
+
+    // ─── ORDERS ───────────────────────────────────────────────
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // ─── ATTENDANCE ───────────────────────────────────────────
+    match /attendance/{attendanceId} {
+      allow read, write: if true;
+    }
+
+    // ─── EVENTS ───────────────────────────────────────────────
+    match /events/{eventId} {
+      allow read, write: if true;
+    }
+
+    // ─── BROADCASTS ───────────────────────────────────────────
+    match /broadcasts/{broadcastId} {
+      allow read, write: if true;
+    }
+
+    // ─── LEADS / CRM ──────────────────────────────────────────
+    match /leads/{leadId} {
+      allow read, write: if true;
+    }
+
+    // ─── FALLBACK — block anything else ───────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

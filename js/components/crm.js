@@ -200,6 +200,7 @@ window.changeLeadStatus = function(leadId, newStatus) {
     if (!lead) return;
 
     lead.status = newStatus;
+    let createdTxns = [];
 
     if (newStatus === 'converted') {
         let advanceAmount = window.GYM_FEES ? window.GYM_FEES["advance fee"] : 5000;
@@ -215,7 +216,7 @@ window.changeLeadStatus = function(leadId, newStatus) {
 
             // ফিন্যান্স ড্যাশবোর্ডে রেফারারের জন্য এক্সপেন্স/ওয়ালেট ক্রেডিট এন্ট্রি তৈরি করা
             if (window.MOCK_TRANSACTIONS) {
-                window.MOCK_TRANSACTIONS.unshift({
+                const txnRef = {
                     id: `TXN-${String(window.MOCK_TRANSACTIONS.length + 1).padStart(3, '0')}`,
                     type: "expense",
                     category: "marketing",
@@ -225,14 +226,16 @@ window.changeLeadStatus = function(leadId, newStatus) {
                     mode: "Wallet",
                     description: `Referral Reward Credit - Sent to ${lead.referrerName} for referring ${lead.name}`,
                     trainerId: ""
-                });
+                };
+                window.MOCK_TRANSACTIONS.unshift(txnRef);
+                createdTxns.push(txnRef);
             }
         }
 
         // ফিন্যান্স ড্যাশবোর্ডে নতুন লিডের জন্য অ্যাডভান্স ফি ইনভয়েস তৈরি করা
         if (window.MOCK_TRANSACTIONS) {
             const descTag = discountApplied > 0 ? ` (Ref. Discounted)` : ``;
-            window.MOCK_TRANSACTIONS.unshift({
+            const txnAdv = {
                 id: `TXN-${String(window.MOCK_TRANSACTIONS.length + 1).padStart(3, '0')}`,
                 type: "income",
                 category: "advance fee",
@@ -243,13 +246,34 @@ window.changeLeadStatus = function(leadId, newStatus) {
                 description: `Advance Fee (Fighter Gated) - ${lead.name}${descTag}`,
                 trainerId: "",
                 portalLocked: true
-            });
+            };
+            window.MOCK_TRANSACTIONS.unshift(txnAdv);
+            createdTxns.push(txnAdv);
         }
 
         alert(`🎉 CONVERSION SUCCESS: ${lead.name} marked as CONVERTED!${rewardMessage}\n\n🔒 Gated Member Protection Active.\n💸 Ledger Sync: Advance Fee of ₹${advanceAmount.toLocaleString()} sent to Finance for Admin clearance.`);
     } else {
         alert(`Lead pipeline status updated to ${newStatus.toUpperCase()}.`);
     }
+
+    // Save to Firestore (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('leads', lead.id, lead)
+            .then(() => console.log('[Firestore] Lead status updated:', lead.id))
+            .catch(e => console.error('[Firestore] changeLeadStatus lead:', e.message));
+        
+        createdTxns.forEach(t => {
+            window.dbService.setDocument('transactions', t.id, t)
+                .then(() => console.log('[Firestore] Lead conversion transaction saved:', t.id))
+                .catch(e => console.error('[Firestore] changeLeadStatus transaction:', e.message));
+        });
+    }
+    try { 
+        localStorage.setItem('MOCK_LEADS_DB', JSON.stringify(window.MOCK_LEADS));
+        if (createdTxns.length > 0) {
+            localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS));
+        }
+    } catch(e) {}
     
     renderCRMPage();
 };
@@ -263,7 +287,17 @@ window.sendLeadWhatsApp = function(leadId) {
 window.deleteLead = function(leadId) {
     if (confirm(`Are you sure you want to permanently delete lead log ${leadId}?`)) {
         const index = window.MOCK_LEADS.findIndex(l => l.id === leadId);
-        if (index !== -1) { window.MOCK_LEADS.splice(index, 1); alert("Lead cleared from CRM."); renderCRMPage(); }
+        if (index !== -1) { 
+            window.MOCK_LEADS.splice(index, 1); 
+            if (window.dbService && window.dbService.deleteDocument) {
+                window.dbService.deleteDocument('leads', leadId)
+                    .then(() => console.log('[Firestore] Lead deleted:', leadId))
+                    .catch(e => console.error('[Firestore] deleteLead:', e.message));
+            }
+            try { localStorage.setItem('MOCK_LEADS_DB', JSON.stringify(window.MOCK_LEADS)); } catch(e) {}
+            alert("Lead cleared from CRM."); 
+            renderCRMPage(); 
+        }
     }
 };
 
@@ -349,6 +383,15 @@ window.simulateMemberReferral = function() {
     };
 
     window.MOCK_LEADS.unshift(newLead);
+
+    // Save to Firestore (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('leads', newLead.id, newLead)
+            .then(() => console.log('[Firestore] Simulated referral lead saved:', newLead.id))
+            .catch(e => console.error('[Firestore] simulateMemberReferral:', e.message));
+    }
+    try { localStorage.setItem('MOCK_LEADS_DB', JSON.stringify(window.MOCK_LEADS)); } catch(e) {}
+
     alert(`[MEMBER PORTAL SIMULATION]:\nAn existing member (Anirban Das) just generated a new referral lead (${name}).\n\nThe lead has been injected into your New Cold pipeline with a Gift Badge!`);
     renderCRMPage();
 };
@@ -365,7 +408,7 @@ window.openLeadModal = function() {
                 <div class="flex items-center space-x-2 border-b border-gray-800 pb-3 mb-4"><i class="ph ph-funnel text-xl text-brandRed"></i><h3 class="font-bold text-white text-sm tracking-wide">Capture New Enquiry</h3></div>
                 <div class="space-y-3 text-left">
                     <div><label class="text-gray-500 text-[10px] uppercase font-bold block mb-1">Full Name</label><input type="text" id="lead-form-name" placeholder="e.g. Souvik Sen" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-2 text-gray-300 focus:outline-none focus:border-brandRed"></div>
-                    <div><label class="text-gray-500 text-[10px] uppercase font-bold block mb-1">WhatsApp Number</label><input type="text" id="lead-form-phone" placeholder="e.g. +91 98300 XXXXX" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-2 text-gray-300 font-mono"></div>
+                    <div><label class="text-gray-500 text-[10px] uppercase font-bold block mb-1">WhatsApp Number</label><input type="text" id="lead-form-phone" placeholder="e.g. 98300XXXXX" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-2 text-gray-300 font-mono"></div>
                     <div>
                         <label class="text-gray-500 text-[10px] uppercase font-bold block mb-1">Source</label>
                         <select id="lead-form-source" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-2 text-gray-300 focus:outline-none">
@@ -385,14 +428,25 @@ window.openLeadModal = function() {
 };
 
 window.submitNewLead = function() {
-    const name = document.getElementById('lead-form-name').value.trim(); const phone = document.getElementById('lead-form-phone').value.trim();
-    const source = document.getElementById('lead-form-source').value; const notes = document.getElementById('lead-form-notes').value.trim();
+    const name = document.getElementById('lead-form-name').value.trim(); 
+    const phone = document.getElementById('lead-form-phone').value.trim();
+    const source = document.getElementById('lead-form-source').value; 
+    const notes = document.getElementById('lead-form-notes').value.trim();
 
     if (!name || !phone) { alert("Please enter Client Name and Mobile Number!"); return; }
 
-    window.MOCK_LEADS.unshift({
+    const newLead = {
         id: `LED-${window.MOCK_LEADS.length + 101}`, name: name, phone: phone, source: source, status: "new", date: new Date().toISOString().slice(0,10), notes: notes || "No additional logs."
-    });
+    };
+    window.MOCK_LEADS.unshift(newLead);
+
+    // Save to Firestore (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('leads', newLead.id, newLead)
+            .then(() => console.log('[Firestore] New lead saved:', newLead.id))
+            .catch(e => console.error('[Firestore] submitNewLead:', e.message));
+    }
+    try { localStorage.setItem('MOCK_LEADS_DB', JSON.stringify(window.MOCK_LEADS)); } catch(e) {}
     
     currentCRMTab = 'all'; const searchInput = document.getElementById('crm-search'); if (searchInput) searchInput.value = '';
     alert(`Success!\n${name} plugged into the CRM.`); window.closeTransactionModal(); renderCRMPage();
@@ -408,54 +462,3 @@ window.closeTransactionModal = function() {
     }
     setTimeout(() => { modal.classList.add('hidden'); }, 200);
 }; // এখানে ব্র্যাকেটটি ক্লোজ হবে (আগের কোডে এটা মিসিং ছিল)
-
-// CRM এবং Finance এর মধ্যে রিয়েল-টাইম সিঙ্ক
-window.changeLeadStatus = function(leadId, newStatus) {
-    const lead = window.MOCK_LEADS.find(l => l.id === leadId);
-    if (!lead) return;
-
-    lead.status = newStatus;
-
-    // কনভার্সন লজিক
-    if (newStatus === 'converted') {
-        let advanceAmount = window.GYM_FEES ? window.GYM_FEES["advance fee"] : 5000;
-        let discountApplied = 0;
-        let rewardMessage = "";
-
-        // রেফারেল থাকলে রিওয়ার্ড ক্যালকুলেশন
-        if (lead.referredBy && window.REFERRAL_OFFER && window.REFERRAL_OFFER.isActive) {
-            discountApplied = window.REFERRAL_OFFER.refereeDiscount;
-            advanceAmount -= discountApplied; 
-            rewardMessage = `\n\n🎁 REFERRAL APPLIED: ${lead.name} got ₹${discountApplied} discount.`;
-
-            // রেফারারের ওয়ালেট ক্রেডিট এন্ট্রি
-            if (window.MOCK_TRANSACTIONS) {
-                window.MOCK_TRANSACTIONS.unshift({
-                    id: `TXN-${Date.now().toString().slice(-4)}`,
-                    type: "expense", category: "marketing",
-                    amount: window.REFERRAL_OFFER.referrerReward,
-                    date: new Date().toISOString().slice(0,10),
-                    status: "paid", mode: "Wallet",
-                    description: `Referral Reward Credit - ${lead.referrerName}`,
-                    trainerId: ""
-                });
-            }
-        }
-
-        // ফিন্যান্স খাতায় অ্যাডভান্স ইনভয়েস জেনারেট
-        if (window.MOCK_TRANSACTIONS) {
-            window.MOCK_TRANSACTIONS.unshift({
-                id: `TXN-${Date.now().toString().slice(-4)}`,
-                type: "income", category: "advance fee",
-                amount: advanceAmount,
-                date: new Date().toISOString().slice(0,10),
-                status: "pending", mode: "UPI",
-                description: `Advance Fee (Fighter Gated) - ${lead.name}`,
-                trainerId: "", portalLocked: true
-            });
-        }
-        alert(`🎉 কনভার্সন সাকসেসফুল! ${lead.name}-এর জন্য অ্যাডভান্স ইনভয়েস জেনারেট হয়েছে।${rewardMessage}`);
-    }
-    
-    renderCRMPage();
-};

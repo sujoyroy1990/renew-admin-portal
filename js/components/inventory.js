@@ -281,7 +281,16 @@ window.sellInventoryItem = function(id) {
         });
     }
 
+    const newSaleTxn = window.MOCK_TRANSACTIONS ? window.MOCK_TRANSACTIONS[0] : null;
+
     alert(`🛒 MARKETPLACE DISPATCH:\n1 unit of "${item.name}" sold successfully!\n\n💸 Ledger Sync: Inflow entry of ₹${item.price.toLocaleString()} registered under SUPPLEMENT sales.`);
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('inventory', item.id, item).catch(e => console.error('[Firestore] sell item:', e.message));
+        if (newSaleTxn) window.dbService.setDocument('transactions', newSaleTxn.id, newSaleTxn).catch(e => console.error('[Firestore] sell txn:', e.message));
+    }
+
     renderInventoryPage();
 };
 
@@ -294,6 +303,12 @@ window.restockInventoryItem = function(id) {
 
     item.stock = Math.min(item.stock + count, item.maxStock);
     alert(`Authorized!\nMaster Inventory stock updated for "${item.name}". Current count: ${item.stock}/${item.maxStock}.`);
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('inventory', item.id, item).catch(e => console.error('[Firestore] restock item:', e.message));
+    }
+
     renderInventoryPage();
 };
 
@@ -397,6 +412,14 @@ window.submitNewProduct = function() {
 
     window.MOCK_INVENTORY.unshift(newPrd);
     alert(`Success!\n"${name}" is now live on your gym e-commerce storefront with the uploaded image.`);
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('inventory', newPrd.id, newPrd)
+            .then(() => console.log('[Firestore] New product saved:', newPrd.id))
+            .catch(e => console.error('[Firestore] submitNewProduct:', e.message));
+    }
+
     window.closeTransactionModal();
     renderInventoryPage();
 };
@@ -450,9 +473,15 @@ window.adminDispatchOrder = function(orderId) {
 
     // 4. Persist all changes
     if (typeof window.saveFighterOrders === 'function') window.saveFighterOrders();
-    try {
-        localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS));
-    } catch(e) {}
+    try { localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS)); } catch(e) {}
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        const dispatchTxn = window.MOCK_TRANSACTIONS[0];
+        window.dbService.setDocument('orders', order.id, order).catch(e => console.error('[Firestore] dispatch order:', e.message));
+        if (product) window.dbService.setDocument('inventory', product.id, product).catch(e => console.error('[Firestore] dispatch inventory:', e.message));
+        if (dispatchTxn) window.dbService.setDocument('transactions', dispatchTxn.id, dispatchTxn).catch(e => console.error('[Firestore] dispatch txn:', e.message));
+    }
 
     alert(`✅ ORDER DISPATCHED!\n\n"${order.productName}" marked as DELIVERED for ${order.memberName}.\nFinance ledger updated with ₹${order.price.toLocaleString()} income entry.`);
     renderInventoryPage();

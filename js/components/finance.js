@@ -450,7 +450,7 @@ window.approveFighterPayment = function(txnId) {
     txn.status = 'paid';
     txn.portalLocked = false;
     const memberName = txn.description.includes('-') ? txn.description.split('-')[1].trim() : txn.description;
-    
+    let updatedMember = null;
     if (typeof window.MOCK_MEMBERS !== 'undefined') {
         const member = window.MOCK_MEMBERS.find(m => m.name.toLowerCase() === memberName.toLowerCase());
         if (member) {
@@ -459,9 +459,17 @@ window.approveFighterPayment = function(txnId) {
                 member.expiryDate = "Pending First Scan";
                 member.status = "inactive";
             }
+            updatedMember = member;
         }
     }
     alert(`Payment verified for "${memberName}".`);
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('transactions', txn.id, txn).catch(e => console.error('[Firestore] approveFighterPayment txn:', e.message));
+        if (updatedMember) window.dbService.setDocument('members', updatedMember.id, updatedMember).catch(e => console.error('[Firestore] approveFighterPayment member:', e.message));
+    }
+
     renderFinancePage();
 };
 
@@ -506,7 +514,17 @@ window.deleteTransaction = function(txnId) {
     const inputPassword = prompt(`⚠️ SECURITY CLEARANCE REQUIRED!\nEnter Admin Secure Password to authorize delete for ${txnId}:`);
     if (inputPassword === ADMIN_SECURE_PASSWORD) {
         const index = window.MOCK_TRANSACTIONS.findIndex(t => t.id === txnId);
-        if (index !== -1) { window.MOCK_TRANSACTIONS.splice(index, 1); alert(`Purged successfully.`); renderFinancePage(); }
+        if (index !== -1) { 
+            window.MOCK_TRANSACTIONS.splice(index, 1); 
+            if (window.dbService && window.dbService.deleteDocument) {
+                window.dbService.deleteDocument('transactions', txnId)
+                    .then(() => console.log('[Firestore] Transaction deleted:', txnId))
+                    .catch(e => console.error('[Firestore] deleteTransaction:', e.message));
+            }
+            try { localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS)); } catch(e) {}
+            alert(`Purged successfully.`); 
+            renderFinancePage(); 
+        }
     } else if (inputPassword !== null) { alert("❌ ACCESS DENIED!"); }
 };
 window.openFeesConfigModal = function() {
@@ -613,8 +631,15 @@ window.savePlanConfig = function() {
         });
     }
 
-    // NEW LOGIC: ব্রাউজারের লোকাল স্টোরেজে পারমানেন্টলি সেভ করা হচ্ছে
+    // Save to localStorage
     localStorage.setItem('GYM_PLANS_DB', JSON.stringify(window.GYM_PLANS));
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('config', 'gym_plans', { plans: window.GYM_PLANS })
+            .then(() => console.log('[Firestore] GYM_PLANS saved'))
+            .catch(e => console.error('[Firestore] savePlanConfig failed:', e.message));
+    }
 
     alert("⚡ MASTER ERP SYNC COMPLETE:\nAll gym subscription plans, validity durations, and fee modifications are now PERMANENTLY SAVED.");
     window.closeTransactionModal();
@@ -624,8 +649,17 @@ window.savePlanConfig = function() {
 window.simulateFighterRegistration = function() {
     const names = ["Arijit Das", "Sayan Mukherjee", "Ritam Chakraborty"];
     const randomName = names[Math.floor(Math.random() * names.length)];
-    const advanceAmount = window.GYM_FEES["advance fee"];
-    window.MOCK_TRANSACTIONS.unshift({ id: `TXN-${window.MOCK_TRANSACTIONS.length + 1}`, type: "income", category: "advance fee", amount: advanceAmount, date: new Date().toISOString().slice(0,10), status: "pending", mode: "UPI", description: `Advance Fee (Fighter Gated) - ${randomName}`, trainerId: "", portalLocked: true });
+    const advanceAmount = window.GYM_FEES ? window.GYM_FEES["advance fee"] : 2500;
+    const newTxn = { id: `TXN-${window.MOCK_TRANSACTIONS.length + 1}`, type: "income", category: "advance fee", amount: advanceAmount, date: new Date().toISOString().slice(0,10), status: "pending", mode: "UPI", description: `Advance Fee (Fighter Gated) - ${randomName}`, trainerId: "", portalLocked: true };
+    window.MOCK_TRANSACTIONS.unshift(newTxn);
+
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('transactions', newTxn.id, newTxn)
+            .then(() => console.log('[Firestore] Simulated registration transaction saved:', newTxn.id))
+            .catch(e => console.error('[Firestore] simulateFighterRegistration:', e.message));
+    }
+    try { localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS)); } catch(e) {}
+
     alert(`Fighter registered.`); renderFinancePage();
 };
 
@@ -634,7 +668,27 @@ window.collectAdvanceAndUnlock = function(txnId) {
     if (!txn) return;
     txn.status = 'paid'; txn.portalLocked = false;
     const memberName = txn.description.includes('-') ? txn.description.split('-')[1].trim() : txn.description;
-    if (typeof MOCK_MEMBERS !== 'undefined') { MOCK_MEMBERS.push({ id: `m-${Date.now().toString().slice(-4)}`, name: memberName, phone: "+91 98300 55443", plan: "Fighter Premium Track", expiryDate: "16/07/2026", status: "active", photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150", trainerId: "", portalLocked: false }); }
+    let newMember = null;
+    if (typeof MOCK_MEMBERS !== 'undefined') { 
+        newMember = { id: `m-${Date.now().toString().slice(-4)}`, name: memberName, phone: "+91 98300 55443", plan: "Fighter Premium Track", expiryDate: "16/07/2026", status: "active", photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150", trainerId: "", portalLocked: false };
+        MOCK_MEMBERS.push(newMember); 
+    }
+
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('transactions', txn.id, txn)
+            .then(() => console.log('[Firestore] Unlocked transaction updated:', txn.id))
+            .catch(e => console.error('[Firestore] collectAdvanceAndUnlock txn:', e.message));
+        if (newMember) {
+            window.dbService.setDocument('members', newMember.id, newMember)
+                .then(() => console.log('[Firestore] New member saved:', newMember.id))
+                .catch(e => console.error('[Firestore] collectAdvanceAndUnlock member:', e.message));
+        }
+    }
+    try { 
+        localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS)); 
+        if (typeof MOCK_MEMBERS !== 'undefined') localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(MOCK_MEMBERS));
+    } catch(e) {}
+
     alert(`Portal unlocked for ${memberName}.`); renderFinancePage();
 };
 
@@ -789,14 +843,22 @@ window.submitTransaction = function() {
     const today = new Date();
     const formattedDate = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 
-    window.MOCK_TRANSACTIONS.unshift({
+    const newTxn = {
         id: `TXN-${String(window.MOCK_TRANSACTIONS.length + 1).padStart(3, '0')}`,
         type: selectedFormType, category: category, amount: amount, date: formattedDate, status: "paid", mode: mode, description: finalDesc, trainerId: trainerId
-    });
+    };
+    window.MOCK_TRANSACTIONS.unshift(newTxn);
 
     // ===== REAL-TIME SYNC: localStorage + Trainer Portal Broadcast =====
     // ১. localStorage-এ সম্পূর্ণ transactions array সেভ করা হচ্ছে
     try { localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS)); } catch(e) {}
+
+    // Firestore save (fire-and-forget)
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('transactions', newTxn.id, newTxn)
+            .then(() => console.log('[Firestore] Transaction saved:', newTxn.id))
+            .catch(e => console.error('[Firestore] submitTransaction:', e.message));
+    }
 
     // ২. Trainer portal-কে নতুন data দেখানোর জন্য custom event dispatch করা হচ্ছে
     //    যদি trainer portal খোলা থাকে, তবে সে সাথে সাথে নতুন revenue দেখতে পাবে
