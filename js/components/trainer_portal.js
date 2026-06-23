@@ -5,6 +5,26 @@
 let loggedInTrainer = null;
 let trainerCurrentTab = 'dashboard';
 
+if (!window.getFighterMedicalHistory) {
+    window.getFighterMedicalHistory = function(member) {
+        const data = member.assessmentData;
+        if (!data) return "No assessment submitted";
+
+        const issues = [];
+        if (data && data.medicalHeartCondition === 'yes') issues.push("Heart Condition");
+        if (data && data.medicalChestPain === 'yes') issues.push("Chest Pain");
+        if (data && data.medicalBoneJointProblem === 'yes') issues.push("Bone/Joint Problem");
+        if (data && data.medicalRecentSurgery === 'yes') issues.push("Recent Surgery");
+        
+        if (data && data.medicalElaboration) {
+            issues.push(data.medicalElaboration);
+        }
+
+        if (issues.length === 0) return "No health issues reported";
+        return issues.join(", ");
+    };
+}
+
 function getTrainerPortalView() {
     if (!loggedInTrainer) {
         return `
@@ -32,7 +52,7 @@ function getTrainerPortalView() {
     }
 
     const t = loggedInTrainer;
-    const assignedFighters = MOCK_MEMBERS.filter(m => m.trainerId === t.id);
+    const assignedFighters = window.MOCK_MEMBERS.filter(m => m.trainerId === t.id);
 
     // Shared revenue engine ব্যবহার করে current month-এর ডেটা নেওয়া হচ্ছে
     const _curMonth = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
@@ -152,7 +172,7 @@ function getTrainerPortalView() {
                                             <img src="${f.photoUrl}" class="w-8 h-8 rounded-full border border-gray-800 object-cover">
                                             <div>
                                                 <div class="flex items-center space-x-1.5">
-                                                    <h5 class="text-white font-bold text-xs">${f.name}</h5>
+                                                    <h5 class="text-indigo-400 hover:text-indigo-300 font-bold text-xs cursor-pointer hover:underline" onclick="window.showFighterProfileDetail('${f.id}')">${f.name}</h5>
                                                     <button onclick="window.openAssessmentForm('${f.id}')" class="${formColorClass} hover:scale-110 transition-transform" title="${formTitle}">
                                                         <i class="ph ph-note-pencil text-sm font-bold"></i>
                                                     </button>
@@ -276,7 +296,7 @@ function getTrainerPortalView() {
                             <img src="${f.photoUrl}" class="w-12 h-12 rounded-full border border-gray-800 object-cover shadow-sm">
                             <div>
                                 <div class="flex items-center space-x-2">
-                                    <h5 class="text-white font-bold text-xs">${f.name}</h5>
+                                    <h5 class="text-indigo-400 hover:text-indigo-300 font-bold text-xs cursor-pointer hover:underline" onclick="window.showFighterProfileDetail('${f.id}')">${f.name}</h5>
                                     <span class="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded font-mono text-[9px] font-bold uppercase">${level}</span>
                                 </div>
                                 <p class="text-[10px] text-gray-500 font-mono mt-0.5 uppercase">${f.plan}</p>
@@ -355,7 +375,7 @@ function getTrainerPortalView() {
                             <img src="${f.photoUrl}" class="w-12 h-12 rounded-full border border-gray-800 object-cover shadow-sm">
                             <div>
                                 <div class="flex items-center space-x-2">
-                                    <h5 class="text-white font-bold text-xs">${f.name}</h5>
+                                    <h5 class="text-indigo-400 hover:text-indigo-300 font-bold text-xs cursor-pointer hover:underline" onclick="window.showFighterProfileDetail('${f.id}')">${f.name}</h5>
                                     ${statusBadge}
                                 </div>
                                 <p class="text-[10px] text-gray-500 font-mono mt-0.5 uppercase">${f.plan}</p>
@@ -478,8 +498,8 @@ function renderTrainerRevenuePanel(trainerId) {
         result = window.calculateTrainerEarnings(trainerId, currentMonth);
     }
 
-    const commissionRules = window.COMMISSION_RULES || { 'pt': 0.20, 'diet plan': 0.10, 'supplement': 0.05 };
-    const rateLabels = { 'pt': '20%', 'diet plan': '10%', 'supplement': '5%' };
+    const commissionRules = window.COMMISSION_RULES || { 'pt': 0.20, 'diet plan': 0.10, 'supplement': 0.05, 'supplements': 0.05, 'gear': 0.05, 'apparel': 0.05 };
+    const rateLabels = { 'pt': '20%', 'diet plan': '10%', 'supplement': '5%', 'supplements': '5%', 'gear': '5%', 'apparel': '5%' };
 
     const breakdownRows = result.breakdown.length > 0
         ? result.breakdown.map(b => {
@@ -1438,4 +1458,806 @@ window.saveDietChart = function(memberId) {
     alert(`Diet chart for ${member.name} updated successfully.`);
     window.closeTrainerModal();
     navigateTo('trainer-portal');
+};
+
+// =========================================================================
+// FIGHTER DETAIL & PRIVATE NOTES MODAL
+// =========================================================================
+
+window.showFighterProfileDetail = function(memberId) {
+    const modal = document.getElementById('trainer-modal');
+    if (!modal) return;
+
+    window.renderFighterProfileModalContent(memberId);
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        if (modal.firstElementChild) {
+            modal.firstElementChild.classList.remove('scale-95');
+            modal.firstElementChild.classList.add('scale-100');
+        }
+    }, 10);
+};
+
+window.activeFighterModalTab = 'overview';
+
+window.switchFighterModalTab = function(tabName, memberId) {
+    window.activeFighterModalTab = tabName;
+    window.renderFighterProfileModalContent(memberId);
+};
+
+window.renderFighterProfileModalContent = function(memberId) {
+    const modal = document.getElementById('trainer-modal');
+    if (!modal) return;
+
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) {
+        modal.innerHTML = `<div class="bg-darkBg p-6 border border-gray-800 rounded-xl text-center"><p class="text-red-500">Member not found.</p></div>`;
+        return;
+    }
+
+    const medical = window.getFighterMedicalHistory ? window.getFighterMedicalHistory(member) : (member.medicalHistory || "None disclosed");
+    const belt = member.beltRank || "White Belt";
+    const record = member.fightRecord || "0 - 0 - 0";
+    const recordParts = record.split('-').map(s => parseInt(s.trim(), 10) || 0);
+    const wins = recordParts[0] !== undefined ? recordParts[0] : 0;
+    const losses = recordParts[1] !== undefined ? recordParts[1] : 0;
+    const draws = recordParts[2] !== undefined ? recordParts[2] : 0;
+    const streak = `${member.streak || 0} Days`;
+    const notes = member.privateNotes || [];
+
+    // TABS HEADERS
+    const tabHeaders = `
+        <div class="flex border-b border-gray-800 pb-2 mb-4 space-x-4 sticky top-0 bg-darkBg/97 z-20 pt-1">
+            <button onclick="window.switchFighterModalTab('overview', '${member.id}')" class="pb-1 text-xs font-bold uppercase tracking-wider transition-all focus:outline-none ${window.activeFighterModalTab === 'overview' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-white'}">
+                Overview & Notes
+            </button>
+            <button onclick="window.switchFighterModalTab('performance', '${member.id}')" class="pb-1 text-xs font-bold uppercase tracking-wider transition-all focus:outline-none ${window.activeFighterModalTab === 'performance' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-white'}">
+                Performance & Tracking
+            </button>
+        </div>
+    `;
+
+    let activeTabBody = "";
+
+    // -------------------------------------------------------------
+    // TAB: OVERVIEW & PRIVATE NOTES (Existing code, wrapped)
+    // -------------------------------------------------------------
+    if (window.activeFighterModalTab === 'overview') {
+        const notesHtml = notes.length === 0
+            ? `<p class="text-gray-600 text-[10px] italic py-4 text-center border border-dashed border-gray-800 rounded-xl bg-black/10">No private trainer notes recorded for this fighter yet.</p>`
+            : notes.map((n, idx) => `
+                <div class="bg-black/30 border border-gray-800/60 p-2.5 rounded-xl space-y-1 relative group">
+                    <div class="text-gray-300 text-[10px] leading-relaxed whitespace-pre-wrap">${n.text}</div>
+                    <div class="flex justify-between items-center text-[8px] text-gray-500 font-mono mt-1">
+                        <span>Trainer Comment</span>
+                        <span>${n.date}</span>
+                    </div>
+                </div>
+            `).reverse().join('');
+
+        activeTabBody = `
+            <!-- Section 1: Fighter Profile View (Editable Belt & Record) -->
+            <div class="space-y-3 mb-4">
+                <h4 class="text-indigo-400 font-bold uppercase text-[9px] tracking-wider flex items-center">
+                    <i class="ph ph-user-focus text-indigo-400 text-sm mr-1.5"></i>Fighter Profile Details
+                </h4>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-black/30 border border-gray-800/60 p-2.5 rounded-xl flex items-center space-x-2">
+                        <div class="p-1.5 bg-blue-500/10 text-blue-400 rounded-lg text-base"><i class="ph ph-medal"></i></div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-gray-500 text-[8px] uppercase font-bold mb-0.5">Belt Rank</p>
+                            <select id="edit-member-belt" class="bg-black/40 border border-gray-800 rounded px-1.5 py-0.5 text-white text-[10px] font-bold font-mono focus:outline-none focus:border-indigo-500 w-full">
+                                <option value="White Belt" ${belt === "White Belt" ? "selected" : ""}>White Belt</option>
+                                <option value="Blue Belt" ${belt === "Blue Belt" ? "selected" : ""}>Blue Belt</option>
+                                <option value="Purple Belt" ${belt === "Purple Belt" ? "selected" : ""}>Purple Belt</option>
+                                <option value="Brown Belt" ${belt === "Brown Belt" ? "selected" : ""}>Brown Belt</option>
+                                <option value="Black Belt" ${belt === "Black Belt" ? "selected" : ""}>Black Belt</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="bg-black/30 border border-gray-800/60 p-2.5 rounded-xl flex items-center space-x-2">
+                        <div class="p-1.5 bg-amber-500/10 text-amber-400 rounded-lg text-base"><i class="ph ph-trophy"></i></div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-gray-500 text-[8px] uppercase font-bold mb-1">Fight Record (W - L - D)</p>
+                            <div class="flex items-center space-x-1.5">
+                                <input type="number" id="edit-member-wins" value="${wins}" min="0" class="bg-black/40 border border-gray-800 rounded px-1 py-0.5 text-white text-[10px] font-bold font-mono focus:outline-none focus:border-indigo-500 w-10 text-center" title="Wins">
+                                <span class="text-gray-600 font-bold">-</span>
+                                <input type="number" id="edit-member-losses" value="${losses}" min="0" class="bg-black/40 border border-gray-800 rounded px-1 py-0.5 text-white text-[10px] font-bold font-mono focus:outline-none focus:border-indigo-500 w-10 text-center" title="Losses">
+                                <span class="text-gray-600 font-bold">-</span>
+                                <input type="number" id="edit-member-draws" value="${draws}" min="0" class="bg-black/40 border border-gray-800 rounded px-1 py-0.5 text-white text-[10px] font-bold font-mono focus:outline-none focus:border-indigo-500 w-10 text-center" title="Draws">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-black/30 border border-gray-800/60 p-2.5 rounded-xl flex items-center space-x-2">
+                        <div class="p-1.5 bg-orange-500/10 text-orange-400 rounded-lg text-base"><i class="ph ph-fire"></i></div>
+                        <div>
+                            <p class="text-gray-500 text-[8px] uppercase font-bold">Attendance Streak</p>
+                            <span class="text-white text-[11px] font-bold font-mono">${streak}</span>
+                        </div>
+                    </div>
+                    <div class="bg-black/30 border border-gray-800/60 p-2.5 rounded-xl flex items-center space-x-2">
+                        <div class="p-1.5 bg-red-500/10 text-red-500 rounded-lg text-base"><i class="ph ph-heartbeat"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-gray-500 text-[8px] uppercase font-bold">Medical History</p>
+                            <span class="text-white text-[10px] font-bold truncate block" title="${medical}">${medical}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end mt-2">
+                    <button onclick="window.saveFighterProfileFromTrainer('${member.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl transition-all shadow uppercase tracking-wide flex items-center space-x-1.5">
+                        <i class="ph ph-floppy-disk text-xs"></i>
+                        <span>Save Belt & Record</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Section 2: Private Trainer Notes/Comments -->
+            <div class="space-y-3 pt-3 border-t border-gray-800/50">
+                <h4 class="text-indigo-400 font-bold uppercase text-[9px] tracking-wider flex items-center">
+                    <i class="ph ph-note-pencil text-indigo-400 text-sm mr-1.5"></i>Private Trainer Comments
+                </h4>
+                
+                <!-- Notes Scroll Log -->
+                <div class="space-y-2 max-h-[140px] overflow-y-auto pr-1 custom-scrollbar" id="fighter-notes-log-container">
+                    ${notesHtml}
+                </div>
+
+                <!-- Add Note Input Form -->
+                <div class="bg-black/30 border border-gray-800/60 p-2.5 rounded-xl space-y-1.5">
+                    <label class="text-[8px] text-gray-500 font-bold uppercase block">Add Private Comment</label>
+                    <textarea id="new-fighter-note-input" rows="2" placeholder="left hook weak, needs work..." class="w-full bg-black/40 border border-gray-800 focus:border-indigo-500 rounded-lg p-2 text-xs text-white resize-none outline-none font-mono"></textarea>
+                    <button onclick="window.submitFighterNote('${member.id}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 rounded-lg transition-all shadow uppercase tracking-wide">
+                        Upload Note
+                    </button>
+                </div>
+            </div>
+
+            <!-- Section 3: Send Direct Message to Fighter (Fighter Portal Dashboard) -->
+            <div class="space-y-3 pt-3 border-t border-gray-800/50">
+                <h4 class="text-indigo-400 font-bold uppercase text-[9px] tracking-wider flex items-center">
+                    <i class="ph ph-chat-text text-indigo-400 text-sm mr-1.5"></i>Send Direct Message to Fighter
+                </h4>
+                
+                <!-- Messages Scroll Log (Trainer View) -->
+                <div class="space-y-2 max-h-[120px] overflow-y-auto pr-1 custom-scrollbar" id="fighter-direct-messages-container">
+                    ${(member.trainerMessages || []).length === 0
+                        ? `<p class="text-gray-600 text-[10px] italic py-4 text-center border border-dashed border-gray-800 rounded-xl bg-black/10">No direct messages sent to this fighter yet.</p>`
+                        : member.trainerMessages.map(msg => `
+                            <div class="bg-indigo-950/10 border border-indigo-500/20 p-2.5 rounded-xl space-y-1 relative group">
+                                <div class="text-indigo-200 text-[10px] leading-relaxed whitespace-pre-wrap">${msg.message}</div>
+                                <div class="flex justify-between items-center text-[8px] text-gray-500 font-mono mt-1">
+                                    <span>Sent to Fighter</span>
+                                    <span>${msg.date}</span>
+                                </div>
+                            </div>
+                        `).reverse().join('')}
+                </div>
+
+                <!-- Add Message Input Form -->
+                <div class="bg-black/30 border border-gray-800/60 p-2.5 rounded-xl space-y-1.5">
+                    <label class="text-[8px] text-gray-500 font-bold uppercase block">New Message</label>
+                    <textarea id="new-fighter-message-input" rows="2" placeholder="e.g. Bring your shin guards tomorrow..." class="w-full bg-black/40 border border-gray-800 focus:border-indigo-500 rounded-lg p-2 text-xs text-white resize-none outline-none font-mono"></textarea>
+                    <button onclick="window.sendFighterDirectMessage('${member.id}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 rounded-lg transition-all shadow uppercase tracking-wide">
+                        Send Message
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    // -------------------------------------------------------------
+    // TAB: PERFORMANCE & PROGRESS TRACKING (New features)
+    // -------------------------------------------------------------
+    else if (window.activeFighterModalTab === 'performance') {
+        
+        // 1. Attendance Monitor Calculations
+        const attLogs = (window.MEMBER_ATTENDANCE_LOGS || []).filter(l => l.memberId === member.id && l.type === 'check-in');
+        const checkInMap = {};
+        attLogs.forEach(l => { checkInMap[l.date] = l.time; });
+
+        const historyDays = [];
+        let dayOffset = 0;
+        while (historyDays.length < 10 && dayOffset < 30) {
+            const d = new Date();
+            d.setDate(d.getDate() - dayOffset);
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            if (d.getDay() !== 0) { // Exclude Sundays
+                historyDays.push(dateStr);
+            }
+            dayOffset++;
+        }
+
+        let lateStreak = 0;
+        let attendanceStreak = 0;
+        let isCurrentStreakBroken = false;
+        let isLateStreakBroken = false;
+        let totalAbsent = 0;
+        let totalLate = 0;
+        let totalOnTime = 0;
+
+        const dayStatuses = historyDays.map(dateStr => {
+            const checkInTime = checkInMap[dateStr];
+            let status = 'Absent';
+            let timeLabel = '--:--';
+            
+            if (checkInTime) {
+                timeLabel = checkInTime;
+                let cleanTime = checkInTime;
+                if (checkInTime.includes(' ')) {
+                    const parts = checkInTime.trim().split(' ');
+                    if (parts.length === 3) cleanTime = parts[1] + ' ' + parts[2];
+                    else if (parts.length === 2) cleanTime = parts[0] + ' ' + parts[1];
+                }
+                
+                let hour = 8; let min = 0; let ampm = 'AM';
+                const timeParts = cleanTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                if (timeParts) {
+                    hour = parseInt(timeParts[1], 10);
+                    min = parseInt(timeParts[2], 10);
+                    ampm = timeParts[3].toUpperCase();
+                }
+                
+                let totalMinutes = hour * 60 + min;
+                if (ampm === 'PM' && hour !== 12) totalMinutes += 12 * 60;
+                if (ampm === 'AM' && hour === 12) totalMinutes -= 12 * 60;
+                
+                if (totalMinutes > 8 * 60) {
+                    status = 'Late';
+                    totalLate++;
+                    if (!isLateStreakBroken) lateStreak++;
+                } else {
+                    status = 'On Time';
+                    totalOnTime++;
+                    isLateStreakBroken = true;
+                }
+                
+                if (!isCurrentStreakBroken) attendanceStreak++;
+            } else {
+                status = 'Absent';
+                totalAbsent++;
+                isCurrentStreakBroken = true;
+                isLateStreakBroken = true;
+            }
+            
+            return { date: dateStr, status, time: timeLabel };
+        });
+
+        const attStrip = dayStatuses.map(ds => {
+            const color = ds.status === 'On Time' ? 'text-green-400 bg-green-500/10' : ds.status === 'Late' ? 'text-amber-400 bg-amber-500/10' : 'text-red-500 bg-red-500/10';
+            return `
+                <div class="flex flex-col items-center p-1.5 rounded-lg border border-gray-800/80 min-w-[65px] bg-black/20 text-center font-mono">
+                    <span class="text-[8px] text-gray-500">${ds.date.slice(-5)}</span>
+                    <span class="text-[8px] font-bold px-1 py-0.5 rounded ${color} mt-1">${ds.status}</span>
+                    <span class="text-[8px] text-gray-500 mt-0.5">${ds.time.split(' ')[0]}</span>
+                </div>
+            `;
+        }).reverse().join('');
+
+
+        // 2. Weight Cut SVG Graph & Logic
+        const history = [...(member.weightHistory || [])].sort((a,b) => a.date.localeCompare(b.date)).slice(-6);
+        const targetVal = member.targetWeight || 70.0;
+        
+        if (history.length === 0) {
+            const baseW = parseFloat(member.weight) || 73.5;
+            history.push({ date: '6-17', weight: baseW + 1.2 });
+            history.push({ date: '6-19', weight: baseW + 0.8 });
+            history.push({ date: '6-21', weight: baseW + 0.3 });
+            history.push({ date: 'Today', weight: baseW });
+        }
+
+        const weights = history.map(h => h.weight);
+        weights.push(targetVal);
+        const minW = Math.min(...weights) - 1.5;
+        const maxW = Math.max(...weights) + 1.5;
+        const range = maxW - minW || 1;
+        const getW_Y = (w) => 110 - ((w - minW) / range) * 75;
+
+        const points = history.map((h, i) => {
+            const x = 40 + i * (280 / Math.max(1, history.length - 1));
+            const y = getW_Y(h.weight);
+            return { x, y, weight: h.weight, date: h.date };
+        });
+
+        const linePath = `M ${points.map(p => `${p.x} ${p.y}`).join(' L ')}`;
+        const targetY = getW_Y(targetVal);
+
+        let regressionLine = "";
+        if (history.length >= 2) {
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            const n = history.length;
+            for (let i = 0; i < n; i++) {
+                sumX += i;
+                sumY += history[i].weight;
+                sumXY += i * history[i].weight;
+                sumXX += i * i;
+            }
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX || 1);
+            const intercept = (sumY - slope * sumX) / n;
+            const yStart = intercept;
+            const yEnd = slope * (n - 1) + intercept;
+            const ry1 = getW_Y(yStart);
+            const ry2 = getW_Y(yEnd);
+            regressionLine = `<line x1="${points[0].x}" y1="${ry1}" x2="${points[n-1].x}" y2="${ry2}" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3" />`;
+        }
+
+
+        // 3. Fitness Assessment (Sparring) Logs
+        const sparringLogs = member.sparringLogs || [];
+        if (sparringLogs.length === 0) {
+            sparringLogs.push({
+                date: '2026-06-15',
+                round: 'Round 1',
+                defense: { score: 4, notes: 'Good guard height' },
+                offense: { score: 3, notes: 'Striking a bit hesitant' },
+                cardio: { score: 4, notes: 'Maintained pace throughout' }
+            });
+            sparringLogs.push({
+                date: '2026-06-20',
+                round: 'Round 2',
+                defense: { score: 3, notes: 'Dropped hands under pressure' },
+                offense: { score: 4, notes: 'Sharp hook counters' },
+                cardio: { score: 3, notes: 'Gassed in last 30s' }
+            });
+        }
+
+        const sparringHtml = sparringLogs.map(log => `
+            <div class="bg-black/30 border border-gray-800/80 p-2.5 rounded-xl text-[10px] space-y-1">
+                <div class="flex justify-between items-center text-gray-500 font-mono text-[8px]">
+                    <span class="font-bold text-indigo-400">${log.round} (${log.date})</span>
+                    <span>Sparring Log</span>
+                </div>
+                <div class="grid grid-cols-3 gap-1 mt-1 text-center font-mono">
+                    <div class="bg-blue-950/20 border border-blue-900/20 p-1 rounded">
+                        <span class="text-gray-400 block text-[6px] uppercase font-sans">Defense</span>
+                        <span class="text-blue-400 font-bold">${log.defense.score}/5</span>
+                    </div>
+                    <div class="bg-red-950/20 border border-red-900/20 p-1 rounded">
+                        <span class="text-gray-400 block text-[6px] uppercase font-sans">Offense</span>
+                        <span class="text-red-400 font-bold">${log.offense.score}/5</span>
+                    </div>
+                    <div class="bg-green-950/20 border border-green-900/20 p-1 rounded">
+                        <span class="text-gray-400 block text-[6px] uppercase font-sans">Cardio</span>
+                        <span class="text-green-400 font-bold">${log.cardio.score}/5</span>
+                    </div>
+                </div>
+                <div class="text-[8px] text-gray-400 leading-relaxed mt-1 italic pl-1 border-l border-gray-850">
+                    Def: ${log.defense.notes || 'None'} | Off: ${log.offense.notes || 'None'} | Cardio: ${log.cardio.notes || 'None'}
+                </div>
+            </div>
+        `).reverse().join('');
+
+
+        // 4. Technique Checklist render helper
+        const checklist = member.techniqueChecklist || {};
+        const renderCheckItem = (key, label) => {
+            const checked = !!checklist[key];
+            return `
+                <label class="flex items-center space-x-1.5 bg-black/25 border border-gray-800/80 px-2.5 py-1.5 rounded-lg cursor-pointer hover:border-indigo-500/40 transition-colors">
+                    <input type="checkbox" class="rounded border-gray-850 text-indigo-600 focus:ring-0 focus:ring-offset-0 bg-transparent w-3 h-3" onclick="window.toggleTechniqueChecklist('${member.id}', '${key}')" ${checked ? 'checked' : ''}>
+                    <span class="text-gray-300 font-mono text-[9px] select-none">${label}</span>
+                </label>
+            `;
+        };
+
+        activeTabBody = `
+            <div class="space-y-4">
+                
+                <!-- 1. Attendance Monitor -->
+                <div class="space-y-2 border-b border-gray-800/80 pb-3">
+                    <h4 class="text-indigo-400 font-bold uppercase text-[9px] tracking-wider flex items-center">
+                        <i class="ph ph-calendar-check text-indigo-400 text-sm mr-1.5"></i>Attendance Monitor
+                    </h4>
+                    <div class="grid grid-cols-3 gap-2 text-center font-mono">
+                        <div class="bg-black/30 border border-gray-800/60 p-2 rounded-xl">
+                            <p class="text-gray-500 text-[8px] uppercase">On-Time</p>
+                            <p class="text-green-400 text-xs font-black mt-0.5">${totalOnTime}</p>
+                        </div>
+                        <div class="bg-black/30 border border-gray-800/60 p-2 rounded-xl">
+                            <p class="text-gray-500 text-[8px] uppercase">Late</p>
+                            <p class="text-amber-400 text-xs font-black mt-0.5">${totalLate}</p>
+                        </div>
+                        <div class="bg-black/30 border border-gray-800/60 p-2 rounded-xl">
+                            <p class="text-gray-500 text-[8px] uppercase">Absent</p>
+                            <p class="text-red-500 text-xs font-black mt-0.5">${totalAbsent}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-center mt-2 font-mono">
+                        <div class="bg-indigo-950/20 border border-indigo-900/30 p-2 rounded-xl">
+                            <p class="text-[8px] text-indigo-400 uppercase">Streak Present</p>
+                            <p class="text-white text-xs font-black">${attendanceStreak} Days</p>
+                        </div>
+                        <div class="bg-amber-950/20 border border-amber-900/30 p-2 rounded-xl">
+                            <p class="text-[8px] text-amber-400 uppercase">Streak Late</p>
+                            <p class="text-white text-xs font-black">${lateStreak} Days</p>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1.5 overflow-x-auto pr-1 py-1 custom-scrollbar w-full mt-2">
+                        ${attStrip}
+                    </div>
+                </div>
+
+                <!-- 2. Weight Cut Graph -->
+                <div class="space-y-2 border-b border-gray-800/80 pb-3">
+                    <h4 class="text-indigo-400 font-bold uppercase text-[9px] tracking-wider flex items-center">
+                        <i class="ph ph-trend-down text-indigo-400 text-sm mr-1.5"></i>Weight Cut progression
+                    </h4>
+                    
+                    <!-- SVG Chart -->
+                    <div class="relative w-full">
+                        <svg viewBox="0 0 380 140" class="w-full h-28 overflow-visible bg-black/20 rounded-xl p-2 border border-gray-800/40">
+                            <line x1="30" y1="35" x2="350" y2="35" stroke="#1F2937" stroke-dasharray="2" />
+                            <line x1="30" y1="72" x2="350" y2="72" stroke="#1F2937" stroke-dasharray="2" />
+                            <line x1="30" y1="110" x2="350" y2="110" stroke="#1F2937" stroke-dasharray="2" />
+                            
+                            <line x1="30" y1="${targetY}" x2="350" y2="${targetY}" stroke="#EF4444" stroke-width="1" stroke-dasharray="4 4" />
+                            <text x="345" y="${targetY - 4}" fill="#EF4444" font-size="7" font-weight="bold" text-anchor="end">Target: ${targetVal}kg</text>
+                            
+                            <path d="${linePath}" fill="none" stroke="#10B981" stroke-width="2" />
+                            ${regressionLine}
+                            
+                            ${points.map((p, idx) => `
+                                <circle cx="${p.x}" cy="${p.y}" r="3" fill="#10B981" stroke="#1E1E1E" stroke-width="1" />
+                                <text x="${p.x}" y="${p.y - 6}" fill="#10B981" font-size="6" text-anchor="middle" font-weight="bold" font-family="monospace">${p.weight}</text>
+                                <text x="${p.x}" y="130" fill="#4B5563" font-size="6" text-anchor="middle" font-family="monospace">${p.date.slice(-5)}</text>
+                            `).join('')}
+                        </svg>
+                        <div class="absolute top-2 left-2 flex items-center space-x-3 text-[8px] font-mono text-gray-500">
+                            <div class="flex items-center space-x-1"><span class="w-2 h-0.5 bg-green-500 inline-block"></span><span>Weight Logs</span></div>
+                            <div class="flex items-center space-x-1"><span class="w-2 h-0.5 bg-blue-500 stroke-dasharray-3 inline-block"></span><span>Trend line</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Inputs -->
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <div class="bg-black/30 border border-gray-800 p-2.5 rounded-xl">
+                            <label class="text-[8px] text-gray-500 font-bold uppercase block">Log Daily Weight (KG)</label>
+                            <input type="number" step="0.1" id="daily-weight-log" placeholder="e.g. 71.5" class="w-full bg-black/40 border border-gray-800 focus:border-indigo-500 rounded px-2 py-1 text-[10px] text-white outline-none mt-1 font-mono">
+                        </div>
+                        <div class="bg-black/30 border border-gray-800 p-2.5 rounded-xl">
+                            <label class="text-[8px] text-gray-500 font-bold uppercase block">Update Target Weight (KG)</label>
+                            <input type="number" step="0.1" id="target-weight-log" value="${targetVal}" class="w-full bg-black/40 border border-gray-800 focus:border-indigo-500 rounded px-2 py-1 text-[10px] text-white outline-none mt-1 font-mono">
+                        </div>
+                    </div>
+                    <button onclick="window.logFighterWeight('${member.id}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-2 rounded-xl transition-all shadow uppercase tracking-wide">
+                        Update Weight Target & Log
+                    </button>
+                </div>
+
+                <!-- 3. Fitness Assessment Log (Sparring) -->
+                <div class="space-y-2 border-b border-gray-800/80 pb-3">
+                    <h4 class="text-indigo-400 font-bold uppercase text-[9px] tracking-wider flex items-center">
+                        <i class="ph ph-sword text-indigo-400 text-sm mr-1.5"></i>Fitness Assessment (Sparring Log)
+                    </h4>
+                    
+                    <div class="bg-black/30 border border-gray-800 p-3 rounded-xl space-y-2">
+                        <div class="grid grid-cols-4 gap-2">
+                            <div class="col-span-1">
+                                <label class="text-[7px] text-gray-500 font-bold uppercase">Round</label>
+                                <select id="sparring-round" class="w-full bg-black/50 border border-gray-800 rounded px-1 py-1 text-[9px] text-white outline-none mt-0.5 font-mono">
+                                    <option>Round 1</option><option>Round 2</option><option>Round 3</option><option>Round 4</option><option>Round 5</option>
+                                </select>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="text-[7px] text-gray-500 font-bold uppercase">Defense</label>
+                                <select id="sparring-defense-score" class="w-full bg-black/50 border border-gray-800 rounded px-1 py-1 text-[9px] text-white outline-none mt-0.5 font-mono">
+                                    <option value="5">5/5 ★</option><option value="4" selected>4/5 ★</option><option value="3">3/5 ★</option><option value="2">2/5 ★</option><option value="1">1/5 ★</option>
+                                </select>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="text-[7px] text-gray-500 font-bold uppercase">Offense</label>
+                                <select id="sparring-offense-score" class="w-full bg-black/50 border border-gray-800 rounded px-1 py-1 text-[9px] text-white outline-none mt-0.5 font-mono">
+                                    <option value="5">5/5 ★</option><option value="4" selected>4/5 ★</option><option value="3">3/5 ★</option><option value="2">2/5 ★</option><option value="1">1/5 ★</option>
+                                </select>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="text-[7px] text-gray-500 font-bold uppercase">Cardio</label>
+                                <select id="sparring-cardio-score" class="w-full bg-black/50 border border-gray-800 rounded px-1 py-1 text-[9px] text-white outline-none mt-0.5 font-mono">
+                                    <option value="5">5/5 ★</option><option value="4" selected>4/5 ★</option><option value="3">3/5 ★</option><option value="2">2/5 ★</option><option value="1">1/5 ★</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="text-[7px] text-gray-500 font-bold uppercase">Defense Notes</label>
+                                <input type="text" id="sparring-defense-notes" placeholder="notes" class="w-full bg-black/50 border border-gray-800 rounded px-2 py-1 text-[9px] text-white outline-none mt-0.5 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[7px] text-gray-500 font-bold uppercase">Offense Notes</label>
+                                <input type="text" id="sparring-offense-notes" placeholder="notes" class="w-full bg-black/50 border border-gray-800 rounded px-2 py-1 text-[9px] text-white outline-none mt-0.5 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[7px] text-gray-500 font-bold uppercase">Cardio Notes</label>
+                                <input type="text" id="sparring-cardio-notes" placeholder="notes" class="w-full bg-black/50 border border-gray-800 rounded px-2 py-1 text-[9px] text-white outline-none mt-0.5 font-mono">
+                            </div>
+                        </div>
+                        <button onclick="window.logFighterSparring('${member.id}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 rounded-lg transition-all shadow uppercase tracking-wide">
+                            Save Sparring Log
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-2 max-h-[140px] overflow-y-auto pr-1 custom-scrollbar mt-2">
+                        ${sparringHtml}
+                    </div>
+                </div>
+
+                <!-- 4. Technique Checklist -->
+                <div class="space-y-2">
+                    <h4 class="text-indigo-400 font-bold uppercase text-[9px] tracking-wider flex items-center">
+                        <i class="ph ph-shield-check text-indigo-400 text-sm mr-1.5"></i>Technique Checklist
+                    </h4>
+                    
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="space-y-2">
+                            <span class="text-[8px] text-gray-500 uppercase font-black tracking-wider block border-b border-gray-850 pb-1">Striking</span>
+                            <div class="flex flex-col space-y-1.5">
+                                ${renderCheckItem('striking_jab', 'Jab / Cross')}
+                                ${renderCheckItem('striking_hook', 'Hook / Uppercut')}
+                                ${renderCheckItem('striking_kick', 'Kicks (Low/Head)')}
+                                ${renderCheckItem('striking_elbow', 'Elbows & Knees')}
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <span class="text-[8px] text-gray-500 uppercase font-black tracking-wider block border-b border-gray-850 pb-1">Grappling</span>
+                            <div class="flex flex-col space-y-1.5">
+                                ${renderCheckItem('grappling_takedown', 'Takedowns')}
+                                ${renderCheckItem('grappling_sprawl', 'Sprawl & Brawl')}
+                                ${renderCheckItem('grappling_clinch', 'Clinch Control')}
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <span class="text-[8px] text-gray-500 uppercase font-black tracking-wider block border-b border-gray-850 pb-1">Submissions</span>
+                            <div class="flex flex-col space-y-1.5">
+                                ${renderCheckItem('sub_rnc', 'Rear Naked Choke')}
+                                ${renderCheckItem('sub_armbar', 'Armbar / Tri')}
+                                ${renderCheckItem('sub_guillotine', 'Guillotine / Kim')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        `;
+    }
+
+    modal.innerHTML = `
+        <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-[440px] max-w-full shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="bg-darkBg/97 rounded-[14px] p-5 flex flex-col relative text-xs text-left max-h-[85vh] overflow-y-auto custom-scrollbar">
+                
+                <button onclick="window.closeTrainerModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg z-50"><i class="ph ph-x"></i></button>
+                
+                <!-- Fighter Summary Header -->
+                <div class="flex items-center space-x-3 border-b border-gray-800/80 pb-3 mb-3">
+                    <img src="${member.photoUrl || 'https://images.unsplash.com/photo-1597403864947-a85709d7d4c8?w=200'}" class="w-12 h-12 rounded-xl object-cover border border-gray-800 shadow-md">
+                    <div>
+                        <h3 class="text-white font-bold text-sm tracking-wide">${member.name}</h3>
+                        <p class="text-gray-500 text-[9px] uppercase font-mono mt-0.5">${member.plan}</p>
+                        <p class="text-gray-500 text-[9px] font-mono">${member.phone || member.email}</p>
+                    </div>
+                </div>
+
+                <!-- TABS SWITCHER -->
+                ${tabHeaders}
+
+                <!-- ACTIVE TAB BODY -->
+                ${activeTabBody}
+
+            </div>
+        </div>
+    `;
+};
+
+window.saveFighterProfileFromTrainer = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return alert("Error: Member not found.");
+
+    const newBelt = document.getElementById('edit-member-belt').value;
+    const wins = parseInt(document.getElementById('edit-member-wins').value, 10) || 0;
+    const losses = parseInt(document.getElementById('edit-member-losses').value, 10) || 0;
+    const draws = parseInt(document.getElementById('edit-member-draws').value, 10) || 0;
+
+    member.beltRank = newBelt;
+    member.fightRecord = `${wins} - ${losses} - ${draws}`;
+
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+    } catch(e) {}
+
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('members', member.id, member)
+            .then(() => console.log('[Firestore] Fighter belt & record updated:', member.id))
+            .catch(e => console.error('[Firestore] Save member failed:', e.message));
+    }
+
+    window.renderFighterProfileModalContent(memberId);
+    alert(`Success!\n${member.name}'s belt rank and fight record have been updated.`);
+};
+
+window.submitFighterNote = function(memberId) {
+    const textarea = document.getElementById('new-fighter-note-input');
+    if (!textarea) return;
+    const noteText = textarea.value.trim();
+    if (!noteText) {
+        alert("Please enter note text!");
+        return;
+    }
+
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return;
+
+    if (!member.privateNotes) member.privateNotes = [];
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')} ${String(today.getHours()).padStart(2,'0')}:${String(today.getMinutes()).padStart(2,'0')}`;
+    
+    member.privateNotes.push({
+        text: noteText,
+        date: dateStr
+    });
+
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+    } catch(e) {}
+
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('members', member.id, member)
+            .then(() => console.log('[Firestore] Private notes saved:', member.id))
+            .catch(e => console.error('[Firestore] Private notes save failed:', e.message));
+    }
+
+    textarea.value = "";
+    window.renderFighterProfileModalContent(memberId);
+    alert("Private note uploaded successfully!");
+};
+
+window.logFighterWeight = function(memberId) {
+    const weightInput = document.getElementById('daily-weight-log');
+    const targetInput = document.getElementById('target-weight-log');
+    if (!weightInput || !targetInput) return;
+
+    const weight = parseFloat(weightInput.value);
+    const target = parseFloat(targetInput.value);
+
+    if (isNaN(weight) && isNaN(target)) {
+        alert("Please enter a valid weight or target weight.");
+        return;
+    }
+
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return;
+
+    if (!isNaN(target)) {
+        member.targetWeight = target;
+    }
+
+    if (!isNaN(weight)) {
+        if (!member.weightHistory) member.weightHistory = [];
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const existingIdx = member.weightHistory.findIndex(h => h.date === todayStr);
+        if (existingIdx !== -1) {
+            member.weightHistory[existingIdx].weight = weight;
+        } else {
+            member.weightHistory.push({ date: todayStr, weight });
+        }
+        member.weight = `${weight} KG`;
+    }
+
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+    } catch(e) {}
+
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('members', member.id, member)
+            .then(() => {
+                console.log('[Firestore] Fighter weight updated:', member.id);
+                window.renderFighterProfileModalContent(memberId);
+                alert("Weight details logged and updated successfully!");
+            })
+            .catch(e => console.error('[Firestore] Save member failed:', e.message));
+    } else {
+        window.renderFighterProfileModalContent(memberId);
+        alert("Weight details updated successfully (offline cache)!");
+    }
+};
+
+window.logFighterSparring = function(memberId) {
+    const roundVal = document.getElementById('sparring-round').value;
+    const defenseScore = parseInt(document.getElementById('sparring-defense-score').value, 10);
+    const defenseNotes = document.getElementById('sparring-defense-notes').value.trim();
+    const offenseScore = parseInt(document.getElementById('sparring-offense-score').value, 10);
+    const offenseNotes = document.getElementById('sparring-offense-notes').value.trim();
+    const cardioScore = parseInt(document.getElementById('sparring-cardio-score').value, 10);
+    const cardioNotes = document.getElementById('sparring-cardio-notes').value.trim();
+
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return;
+
+    if (!member.sparringLogs) member.sparringLogs = [];
+    
+    const newLog = {
+        date: new Date().toISOString().slice(0, 10),
+        round: roundVal,
+        defense: { score: defenseScore, notes: defenseNotes },
+        offense: { score: offenseScore, notes: offenseNotes },
+        cardio: { score: cardioScore, notes: cardioNotes }
+    };
+
+    member.sparringLogs.push(newLog);
+
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+    } catch(e) {}
+
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('members', member.id, member)
+            .then(() => {
+                console.log('[Firestore] Sparring log added:', member.id);
+                window.renderFighterProfileModalContent(memberId);
+                alert("Sparring performance log added successfully!");
+            })
+            .catch(e => console.error('[Firestore] Save member failed:', e.message));
+    } else {
+        window.renderFighterProfileModalContent(memberId);
+        alert("Sparring performance log added successfully (offline cache)!");
+    }
+};
+
+window.toggleTechniqueChecklist = function(memberId, key) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return;
+
+    if (!member.techniqueChecklist) member.techniqueChecklist = {};
+    member.techniqueChecklist[key] = !member.techniqueChecklist[key];
+
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+    } catch(e) {}
+
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('members', member.id, member)
+            .then(() => {
+                console.log(`[Firestore] Technique checklist item ${key} toggled`);
+            })
+            .catch(e => console.error('[Firestore] Save member failed:', e.message));
+    }
+};
+
+window.sendFighterDirectMessage = function(memberId) {
+    const textarea = document.getElementById('new-fighter-message-input');
+    if (!textarea) return;
+    const msgText = textarea.value.trim();
+    if (!msgText) {
+        alert("Please enter message text!");
+        return;
+    }
+
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return;
+
+    if (!member.trainerMessages) member.trainerMessages = [];
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')} ${String(today.getHours()).padStart(2,'0')}:${String(today.getMinutes()).padStart(2,'0')}`;
+    
+    member.trainerMessages.push({
+        message: msgText,
+        date: dateStr,
+        trainerName: loggedInTrainer ? loggedInTrainer.name : "Trainer"
+    });
+
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+    } catch(e) {}
+
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('members', member.id, member)
+            .then(() => console.log('[Firestore] Direct message saved:', member.id))
+            .catch(e => console.error('[Firestore] Direct message save failed:', e.message));
+    }
+
+    textarea.value = "";
+    window.renderFighterProfileModalContent(memberId);
+    alert("Direct message sent successfully!");
 };

@@ -764,7 +764,7 @@ window.submitAuthRegister = async function() {
             dob: "1994-01-01",
             status: "active",
             assignedFighterIds: [],
-            kpis: { totalAssigned: 0, retentionRate: 100, satisfaction: 5.0, attendanceRate: 100 },
+            kpis: { totalAssigned: 0, retentionRate: 100, satisfaction: 5.0, attendanceRate: 100, fighterRatings: [] },
             revenue: { ptSales: 0, dietPlanSales: 0, supplementSales: 0, totalRevenue: 0 },
             todayAttendance: { checkIn: "--:--", checkOut: null, workingHours: 0 },
             monthlyStats: { daysPresent: 0, lateArrivals: 0, absentDays: 0 }

@@ -85,7 +85,8 @@ function renderTrainersPage() {
             statusBadge = `<span class="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Active</span>`;
         }
 
-        const stars = '★'.repeat(Math.round(t.kpis.satisfaction)) + '☆'.repeat(5 - Math.round(t.kpis.satisfaction));
+        const rating = (t.kpis && typeof t.kpis.satisfaction === 'number') ? t.kpis.satisfaction : 5.0;
+        const stars = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
         const address = t.address || "Birati, Kolkata";
         const joiningDate = t.joiningDate || "12 Jan 2024";
         const assignedFighters = (window.MOCK_MEMBERS || []).filter(m => m.trainerId === t.id).map(m => m.name);
@@ -107,6 +108,10 @@ function renderTrainersPage() {
                                 ${statusBadge}
                             </div>
                             <p class="text-xs text-gray-500 font-mono mt-0.5">${t.email} | ${t.phone}</p>
+                            <div class="flex items-center space-x-1.5 mt-1">
+                                <span class="text-amber-400 text-xs font-black font-mono">${stars}</span>
+                                <span class="text-[10px] text-gray-400 font-bold font-mono">(${rating.toFixed(1)})</span>
+                            </div>
                         </div>
                     </div>
 
@@ -193,7 +198,7 @@ function openTrainerActionModal(trainerId, actionType) {
 
     let targetName = "All Trainers (Global Broadcast)";
     if (trainerId !== 'all') {
-        const trainer = MOCK_TRAINERS.find(t => t.id === trainerId);
+        const trainer = window.MOCK_TRAINERS.find(t => t.id === trainerId);
         targetName = trainer ? trainer.name : "Trainer";
     }
 

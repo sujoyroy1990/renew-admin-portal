@@ -33,6 +33,9 @@ if (savedFees) {
         "PT": 15000, 
         "diet plan": 2000, 
         "supplement": 3500, 
+        "supplements": 3500, 
+        "gear": 2200, 
+        "apparel": 650, 
         "Events booking": 4500, 
         "other": 1000 
     };
@@ -163,16 +166,97 @@ function renderPulseCashFlow() {
     if (!container) return;
 
     const txns = window.MOCK_TRANSACTIONS || [];
-    const juneIncome = txns.filter(t => t.type === 'income' && t.status === 'paid' && t.date.includes('-06-')).reduce((sum, t) => sum + t.amount, 0);
-    const juneExpense = txns.filter(t => t.type === 'expense' && t.date.includes('-06-')).reduce((sum, t) => sum + t.amount, 0);
+    
+    // Scan transactions for the latest year and month to adjust graph context
+    let latestYear = 2026;
+    let latestMonth = 6; // June
+    
+    txns.forEach(t => {
+        if (t.date && t.date.length >= 7) {
+            const parts = t.date.split('-');
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            if (!isNaN(y) && !isNaN(m)) {
+                if (y > latestYear || (y === latestYear && m > latestMonth)) {
+                    latestYear = y;
+                    latestMonth = m;
+                }
+            }
+        }
+    });
 
-    const maxVal = 50000;
+    // Generate the last 4 months ending in latestYear/latestMonth
+    const monthKeys = []; // Array of "YYYY-MM"
+    const monthNames = []; // Array of "MMM"
+    const monthLabels = []; // Array of "MMM (LIVE)" or "MMM"
+    
+    for (let i = 3; i >= 0; i--) {
+        // Handle negative months properly
+        const d = new Date(latestYear, latestMonth - 1 - i, 1);
+        const yStr = d.getFullYear();
+        const mStr = String(d.getMonth() + 1).padStart(2, '0');
+        monthKeys.push(`${yStr}-${mStr}`);
+        
+        const name = d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+        monthNames.push(name);
+        if (i === 0) {
+            monthLabels.push(`${name} (LIVE)`);
+        } else {
+            monthLabels.push(name);
+        }
+    }
+
+    const incomes = [];
+    const expenses = [];
+    
+    monthKeys.forEach((key, index) => {
+        // Sum paid incomes for this month
+        const inc = txns.filter(t => t.type === 'income' && t.status === 'paid' && t.date && t.date.startsWith(key))
+                        .reduce((sum, t) => sum + t.amount, 0);
+        
+        // Sum expenses for this month
+        const exp = txns.filter(t => t.type === 'expense' && t.date && t.date.startsWith(key))
+                        .reduce((sum, t) => sum + t.amount, 0);
+                        
+        incomes.push(inc);
+        expenses.push(exp);
+    });
+
+    const maxVal = Math.max(20000, ...incomes, ...expenses) * 1.15; // 15% headroom
     const getGraphY = (val) => 120 - Math.min((val / maxVal) * 90, 100);
-    const juneIncY = getGraphY(juneIncome);
-    const juneExpY = getGraphY(juneExpense);
 
-    const incomePath = `M 50 75 L 170 65 L 290 50 L 410 ${juneIncY}`;
-    const expensePath = `M 50 115 L 170 95 L 290 105 L 410 ${juneExpY}`;
+    const incomePoints = incomes.map((val, idx) => {
+        const x = 50 + idx * 120;
+        const y = getGraphY(val);
+        return { x, y, val };
+    });
+    const expensePoints = expenses.map((val, idx) => {
+        const x = 50 + idx * 120;
+        const y = getGraphY(val);
+        return { x, y, val };
+    });
+
+    const incomePath = `M ${incomePoints.map(p => `${p.x} ${p.y}`).join(' L ')}`;
+    const expensePath = `M ${expensePoints.map(p => `${p.x} ${p.y}`).join(' L ')}`;
+
+    const incomeCircles = incomePoints.map((p, idx) => {
+        const r = idx === 3 ? "4.5" : "3.5";
+        const stroke = idx === 3 ? `stroke="#1E1E1E" stroke-width="1.5"` : "";
+        return `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="#22C55E" ${stroke} class="pulse-node" onclick="window.triggerGlassBox('${monthLabels[idx]}', 'income', ${p.val}, ${p.x}, ${p.y}, '#22C55E')" />`;
+    }).join('\n');
+
+    const expenseCircles = expensePoints.map((p, idx) => {
+        const r = idx === 3 ? "4.5" : "3.5";
+        const stroke = idx === 3 ? `stroke="#1E1E1E" stroke-width="1.5"` : "";
+        return `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="#FF0033" ${stroke} class="pulse-node" onclick="window.triggerGlassBox('${monthLabels[idx]}', 'expense', ${p.val}, ${p.x}, ${p.y}, '#FF0033')" />`;
+    }).join('\n');
+
+    const textLabels = monthLabels.map((lbl, idx) => {
+        const x = 50 + idx * 120;
+        const color = idx === 3 ? "#FFFFFF" : "#4B5563";
+        const weight = idx === 3 ? `font-weight="bold"` : "";
+        return `<text x="${x}" y="142" fill="${color}" font-size="9" ${weight} text-anchor="middle">${lbl}</text>`;
+    }).join('\n');
 
     const ptTotal = txns.filter(t => t.type === 'income' && t.status === 'paid' && t.category.toLowerCase() === 'pt').reduce((s,t)=>s+t.amount, 0);
     const membershipTotal = txns.filter(t => t.type === 'income' && t.status === 'paid' && t.category.toLowerCase() === 'membership fee').reduce((s,t)=>s+t.amount, 0);
@@ -209,20 +293,9 @@ function renderPulseCashFlow() {
                 <path d="${incomePath}" fill="none" stroke="#22C55E" stroke-width="2.5" class="pipeline-line income-pipe" onclick="window.triggerLineGlow('income')" />
                 <path d="${expensePath}" fill="none" stroke="#FF0033" stroke-width="2.5" class="pipeline-line expense-pipe" onclick="window.triggerLineGlow('expense')" />
                 
-                <circle cx="50" cy="75" r="3.5" fill="#22C55E" class="pulse-node" onclick="window.triggerGlassBox('MAR', 'income', 32000, 50, 75, '#22C55E')" />
-                <circle cx="170" cy="65" r="3.5" fill="#22C55E" class="pulse-node" onclick="window.triggerGlassBox('APR', 'income', 35000, 170, 65, '#22C55E')" />
-                <circle cx="290" cy="50" r="3.5" fill="#22C55E" class="pulse-node" onclick="window.triggerGlassBox('MAY', 'income', 42000, 290, 50, '#22C55E')" />
-                <circle cx="410" cy="${juneIncY}" r="4.5" fill="#22C55E" stroke="#1E1E1E" stroke-width="1.5" class="pulse-node" onclick="window.triggerGlassBox('JUN (LIVE)', 'income', ${juneIncome}, 410, ${juneIncY}, '#22C55E')" />
-
-                <circle cx="50" cy="115" r="3.5" fill="#FF0033" class="pulse-node" onclick="window.triggerGlassBox('MAR', 'expense', 15000, 50, 115, '#FF0033')" />
-                <circle cx="170" cy="95" r="3.5" fill="#FF0033" class="pulse-node" onclick="window.triggerGlassBox('APR', 'expense', 22000, 170, 95, '#FF0033')" />
-                <circle cx="290" cy="105" r="3.5" fill="#FF0033" class="pulse-node" onclick="window.triggerGlassBox('MAY', 'expense', 18000, 290, 105, '#FF0033')" />
-                <circle cx="410" cy="${juneExpY}" r="4.5" fill="#FF0033" stroke="#1E1E1E" stroke-width="1.5" class="pulse-node" onclick="window.triggerGlassBox('JUN (LIVE)', 'expense', ${juneExpense}, 410, ${juneExpY}, '#FF0033')" />
-
-                <text x="50" y="142" fill="#4B5563" font-size="9" text-anchor="middle">MAR</text>
-                <text x="170" y="142" fill="#4B5563" font-size="9" text-anchor="middle">APR</text>
-                <text x="290" y="142" fill="#4B5563" font-size="9" text-anchor="middle">MAY</text>
-                <text x="410" y="142" fill="#FFFFFF" font-size="9" font-weight="bold" text-anchor="middle">JUN (LIVE)</text>
+                ${incomeCircles}
+                ${expenseCircles}
+                ${textLabels}
             </svg>
         </div>
 
@@ -249,7 +322,7 @@ function renderTrainerTargets() {
     if (!container) return;
 
     if (!window.TRAINER_TARGETS) { window.TRAINER_TARGETS = { "t1": 30000, "t2": 20000 }; }
-    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1", name: "Rajat Sharma"}, {id: "t2", name: "Vikram Singh"} ];
+    const trainersList = window.MOCK_TRAINERS || [];
 
     container.innerHTML = `
         <div class="flex justify-between items-center border-b border-gray-800/60 pb-2 mb-3">
@@ -359,7 +432,9 @@ function calculateTrainerSales(trainerId) {
         const result = window.calculateTrainerEarnings(trainerId, null);
         const ptSales = (result.breakdown.find(b => b.category.toLowerCase() === 'pt') || {}).revenue || 0;
         const dietPlanSales = (result.breakdown.find(b => b.category.toLowerCase() === 'diet plan') || {}).revenue || 0;
-        const supplementSales = (result.breakdown.find(b => b.category.toLowerCase() === 'supplement') || {}).revenue || 0;
+        const supplementSales = result.breakdown
+            .filter(b => ['supplement', 'supplements', 'gear', 'apparel'].includes(b.category.toLowerCase()))
+            .reduce((sum, b) => sum + b.revenue, 0);
         return { ptSales, dietPlanSales, supplementSales, totalRevenue: result.totalRevenue, totalCommission: result.totalCommission };
     }
     // Fallback (shared engine আসার আগে)
@@ -367,7 +442,9 @@ function calculateTrainerSales(trainerId) {
     const trainerIncomes = txns.filter(t => t.trainerId === trainerId && t.type === 'income' && t.status === 'paid');
     const ptSales = trainerIncomes.filter(t => t.category.toLowerCase() === 'pt').reduce((s,t)=>s+t.amount, 0);
     const dietPlanSales = trainerIncomes.filter(t => t.category.toLowerCase() === 'diet plan').reduce((s,t)=>s+t.amount, 0);
-    const supplementSales = trainerIncomes.filter(t => t.category.toLowerCase() === 'supplement').reduce((s,t)=>s+t.amount, 0);
+    const supplementSales = trainerIncomes
+        .filter(t => ['supplement', 'supplements', 'gear', 'apparel'].includes(t.category.toLowerCase()))
+        .reduce((s,t)=>s+t.amount, 0);
     return { ptSales, dietPlanSales, supplementSales, totalRevenue: ptSales + dietPlanSales + supplementSales, totalCommission: 0 };
 }
 
@@ -685,9 +762,9 @@ window.collectAdvanceAndUnlock = function(txnId) {
     txn.status = 'paid'; txn.portalLocked = false;
     const memberName = txn.description.includes('-') ? txn.description.split('-')[1].trim() : txn.description;
     let newMember = null;
-    if (typeof MOCK_MEMBERS !== 'undefined') { 
+    if (window.MOCK_MEMBERS) { 
         newMember = { id: `m-${Date.now().toString().slice(-4)}`, name: memberName, phone: "+91 98300 55443", plan: "Fighter Premium Track", expiryDate: "16/07/2026", status: "active", photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150", trainerId: "", portalLocked: false };
-        MOCK_MEMBERS.push(newMember); 
+        window.MOCK_MEMBERS.push(newMember); 
     }
 
     if (window.dbService && window.dbService.setDocument) {
@@ -702,7 +779,7 @@ window.collectAdvanceAndUnlock = function(txnId) {
     }
     try { 
         localStorage.setItem('RENEW_TRANSACTIONS_DB', JSON.stringify(window.MOCK_TRANSACTIONS)); 
-        if (typeof MOCK_MEMBERS !== 'undefined') localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(MOCK_MEMBERS));
+        if (window.MOCK_MEMBERS) localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
     } catch(e) {}
 
     alert(`Portal unlocked for ${memberName}.`); renderFinancePage();
@@ -750,14 +827,14 @@ window.closeTransactionModal = function() {
 
 window.openTargetModal = function() {
     const modal = document.getElementById('transaction-modal'); if (!modal) return;
-    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1", name: "Rajat Sharma"}, {id: "t2", name: "Vikram Singh"} ];
+    const trainersList = window.MOCK_TRAINERS || [];
     const inputsHtml = trainersList.map(t => { const currentTarget = window.TRAINER_TARGETS ? window.TRAINER_TARGETS[t.id] || 0 : 0; return `<div><label class="text-gray-400 text-[11px] font-semibold block mb-1 uppercase">${t.name}</label><div class="relative"><span class="absolute left-3 top-2 text-gray-600">₹</span><input type="number" id="target-input-${t.id}" value="${currentTarget}" class="w-full bg-black/50 border border-gray-800 rounded-lg pl-7 pr-3 py-2 text-xs text-gray-300 font-mono"></div></div>`; }).join('');
     modal.innerHTML = `<div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 p-[2px] rounded-2xl w-80 shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()"><div class="bg-darkBg/95 rounded-[14px] p-5 flex flex-col relative text-xs"><button onclick="window.closeTransactionModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg z-50"><i class="ph ph-x"></i></button><div class="flex items-center space-x-2 border-b border-gray-800 pb-3 mb-4"><i class="ph ph-target text-xl text-purple-400"></i><h3 class="font-bold text-white text-sm">Set Monthly Revenue Goals</h3></div><div class="space-y-4 text-left">${inputsHtml}</div><button onclick="window.submitTrainerTargets()" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2.5 rounded-lg mt-5 shadow">Update Roster Targets</button></div></div>`;
     modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); modal.firstElementChild.classList.add('scale-100'); }, 10); modal.onclick = window.closeTransactionModal;
 };
 
 window.submitTrainerTargets = function() { 
-    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1"}, {id: "t2"} ];
+    const trainersList = window.MOCK_TRAINERS || [];
     trainersList.forEach(t => { 
         const input = document.getElementById(`target-input-${t.id}`); 
         if (input) { window.TRAINER_TARGETS[t.id] = parseFloat(input.value) || 0; } 
@@ -768,7 +845,7 @@ window.submitTrainerTargets = function() {
 window.openTransactionModal = function() {
     const modal = document.getElementById('transaction-modal');
     if (!modal) return;
-    const trainersList = typeof MOCK_TRAINERS !== 'undefined' ? MOCK_TRAINERS : [ {id: "t1", name: "Rajat Sharma"}, {id: "t2", name: "Vikram Singh"} ];
+    const trainersList = window.MOCK_TRAINERS || [];
     const trainerOptions = trainersList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
 
     modal.innerHTML = `
@@ -792,6 +869,9 @@ window.openTransactionModal = function() {
                             <option value="PT">Personal Training (PT)</option>
                             <option value="diet plan">Diet Plan Chart</option>
                             <option value="supplement">Supplement Sales</option>
+                            <option value="supplements">Supplements & Nutrition</option>
+                            <option value="gear">Fighting Gear & Kits</option>
+                            <option value="apparel">Apparel & Gym Clothing</option>
                             <option value="Events booking">Events Booking</option>
                             <option value="other">Other Income</option>
                         </select>

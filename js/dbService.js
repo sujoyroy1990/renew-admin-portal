@@ -15,9 +15,10 @@
 
     function toDoc(record) {
         if (!record) return null;
+        const data = record.data ? record.data() : record;
         return {
-            id: record.id || record.docId || '',
-            ...record.data ? record.data() : record
+            ...data,
+            id: record.id || data.id || record.docId || ''
         };
     }
 

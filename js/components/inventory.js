@@ -272,7 +272,7 @@ window.sellInventoryItem = function(id) {
         window.MOCK_TRANSACTIONS.unshift({
             id: `TXN-${String(window.MOCK_TRANSACTIONS.length + 1).padStart(3, '0')}`,
             type: "income",
-            category: "supplement",
+            category: item.category || "supplement",
             amount: item.price,
             date: new Date().toISOString().slice(0,10),
             status: "paid",
@@ -284,7 +284,7 @@ window.sellInventoryItem = function(id) {
 
     const newSaleTxn = window.MOCK_TRANSACTIONS ? window.MOCK_TRANSACTIONS[0] : null;
 
-    alert(`🛒 MARKETPLACE DISPATCH:\n1 unit of "${item.name}" sold successfully!\n\n💸 Ledger Sync: Inflow entry of ₹${item.price.toLocaleString()} registered under SUPPLEMENT sales.`);
+    alert(`🛒 MARKETPLACE DISPATCH:\n1 unit of "${item.name}" sold successfully!\n\n💸 Ledger Sync: Inflow entry of ₹${item.price.toLocaleString()} registered under ${(item.category || 'supplement').toUpperCase()} sales.`);
 
     // Firestore save (fire-and-forget)
     if (window.dbService && window.dbService.setDocument) {
@@ -458,11 +458,10 @@ window.adminDispatchOrder = function(orderId) {
 
     // 3. Log income entry in Finance
     if (!window.MOCK_TRANSACTIONS) window.MOCK_TRANSACTIONS = [];
-    const catMap = { supplements: 'supplement', gear: 'supplement', apparel: 'supplement' };
     window.MOCK_TRANSACTIONS.unshift({
         id:          `TXN-${String(window.MOCK_TRANSACTIONS.length + 1).padStart(3, '0')}`,
         type:        'income',
-        category:    catMap[order.productCategory] || 'supplement',
+        category:    order.productCategory || 'supplement',
         amount:      order.price,
         date:        new Date().toISOString().slice(0, 10),
         status:      'paid',

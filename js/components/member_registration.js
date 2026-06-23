@@ -123,7 +123,12 @@ window.submitNewRegistration = function() {
         height: '',
         age: '',
         formUploaded: false,
-        assessmentData: {}
+        assessmentData: {},
+        medicalHistory: 'None disclosed',
+        beltRank: 'White Belt',
+        fightRecord: '0-0-0',
+        attendanceStreak: '0 Days',
+        privateNotes: []
     };
 
     window.MOCK_MEMBERS.push(newMember);

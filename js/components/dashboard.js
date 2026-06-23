@@ -298,10 +298,9 @@ window.approveTrainer = function(reqId) {
     if (index === -1) return;
     
     const req = window.PENDING_TRAINERS[index];
-    
-    // নতুন ট্রেইনারকে রেন্ডার করা ট্রেইনার্স ডাটাবেসে যুক্ত করা
-    window.MOCK_TRAINERS.push({
-        id: `t-${Date.now().toString().slice(-4)}`,
+    const newTrainerId = `t-${Date.now().toString().slice(-4)}`;
+    const newTrainer = {
+        id: newTrainerId,
         name: req.name,
         email: req.email,
         phone: req.phone,
@@ -310,9 +309,12 @@ window.approveTrainer = function(reqId) {
         joiningDate: new Date().toLocaleDateString('en-GB'),
         status: "active", // পেন্ডিং থেকে সরাসরি অ্যাক্টিভ হয়ে গেল
         todayAttendance: { checkIn: "--:--", checkOut: null },
-        kpis: { satisfaction: 5.0 },
+        kpis: { totalAssigned: 0, retentionRate: 100, satisfaction: 5.0, attendanceRate: 100, fighterRatings: [] },
         address: "Birati, Kolkata"
-    });
+    };
+    
+    // নতুন ট্রেইনারকে রেন্ডার করা ট্রেইনার্স ডাটাবেসে যুক্ত করা
+    window.MOCK_TRAINERS.push(newTrainer);
 
     // পেন্ডিং লিস্ট থেকে রিমুভ করা
     window.PENDING_TRAINERS.splice(index, 1);
@@ -320,6 +322,16 @@ window.approveTrainer = function(reqId) {
     try {
         localStorage.setItem('RENEW_TRAINERS_DB', JSON.stringify(window.MOCK_TRAINERS));
     } catch(e) {}
+
+    // Firestore Sync
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('trainers', newTrainer.id, newTrainer)
+            .then(() => {
+                console.log('[Firestore] Approved trainer saved:', newTrainer.id);
+            })
+            .catch(e => console.error('[Firestore] approveTrainer write failed:', e.message));
+    }
+
     alert(`Success: ${req.name} is now an active trainer.`);
     
     // রেন্ডার করা (ড্যাশবোর্ড রিফ্রেশ হবে)

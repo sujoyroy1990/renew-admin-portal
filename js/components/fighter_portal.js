@@ -5,6 +5,26 @@
 let loggedInFighter = null;
 let fighterCurrentTab = 'dashboard';
 
+if (!window.getFighterMedicalHistory) {
+    window.getFighterMedicalHistory = function(member) {
+        const data = member.assessmentData;
+        if (!data) return "No assessment submitted";
+
+        const issues = [];
+        if (data && data.medicalHeartCondition === 'yes') issues.push("Heart Condition");
+        if (data && data.medicalChestPain === 'yes') issues.push("Chest Pain");
+        if (data && data.medicalBoneJointProblem === 'yes') issues.push("Bone/Joint Problem");
+        if (data && data.medicalRecentSurgery === 'yes') issues.push("Recent Surgery");
+        
+        if (data && data.medicalElaboration) {
+            issues.push(data.medicalElaboration);
+        }
+
+        if (issues.length === 0) return "No health issues reported";
+        return issues.join(", ");
+    };
+}
+
 if (!window.GYM_BROADCASTS) {
     window.GYM_BROADCASTS = [ { id: "B-1", message: "⚡ System Alert: The main arena will remain closed on Sunday for deep cleaning and maintenance.", date: "2026-06-18" } ];
 }
@@ -207,13 +227,36 @@ function getFighterPortalView() {
                 </div>
 
                 <div class="lg:col-span-2 flex flex-col space-y-6">
-                    <div class="bg-darkSurface border border-gray-800 p-6 rounded-2xl flex-1 overflow-y-auto custom-scrollbar flex flex-col relative shadow-inner max-h-[220px]">
-                        <h4 class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex items-center mb-4 sticky top-0 bg-darkSurface/90 backdrop-blur-sm z-10 pb-2 border-b border-gray-800/60">
-                            <i class="ph ph-broadcast mr-1.5 text-brandRed animate-pulse text-sm"></i> HQ Bulletins & Events
-                        </h4>
-                        <div class="space-y-3">
-                            ${window.GYM_BROADCASTS.map(b => `<div class="bg-amber-950/20 border border-amber-500/20 p-3 rounded-xl flex items-start space-x-2"><i class="ph ph-warning-circle text-amber-500 mt-0.5 text-base drop-shadow-[0_0_5px_rgba(245,158,11,0.5)]"></i><p class="text-amber-100 text-xs leading-relaxed">${b.message}</p></div>`).join('')}
-                            ${window.GYM_EVENTS.map(e => `<div class="bg-purple-950/20 border border-purple-500/20 p-3 rounded-xl flex items-start space-x-2"><i class="ph ph-calendar-star text-purple-400 mt-0.5 text-base drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]"></i><div><p class="text-purple-100 text-xs font-bold">Upcoming Event: ${e.title}</p><p class="text-purple-300 text-[10px] font-mono mt-1">Code: ${e.eventNo} | Date: ${e.date}</p></div></div>`).join('')}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Left: HQ Bulletins & Events -->
+                        <div class="bg-darkSurface border border-gray-800 p-4 rounded-2xl flex flex-col relative shadow-inner h-[220px] overflow-y-auto custom-scrollbar">
+                            <h4 class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex items-center mb-4 sticky top-0 bg-darkSurface/90 backdrop-blur-sm z-10 pb-2 border-b border-gray-800/60">
+                                <i class="ph ph-broadcast mr-1.5 text-brandRed animate-pulse text-sm"></i> HQ Bulletins & Events
+                            </h4>
+                            <div class="space-y-3">
+                                ${window.GYM_BROADCASTS.map(b => `<div class="bg-amber-950/20 border border-amber-500/20 p-3 rounded-xl flex items-start space-x-2"><i class="ph ph-warning-circle text-amber-500 mt-0.5 text-base drop-shadow-[0_0_5px_rgba(245,158,11,0.5)]"></i><p class="text-amber-100 text-xs leading-relaxed">${b.message}</p></div>`).join('')}
+                                ${window.GYM_EVENTS.map(e => `<div class="bg-purple-950/20 border border-purple-500/20 p-3 rounded-xl flex items-start space-x-2"><i class="ph ph-calendar-star text-purple-400 mt-0.5 text-base drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]"></i><div><p class="text-purple-100 text-xs font-bold">Upcoming Event: ${e.title}</p><p class="text-purple-300 text-[10px] font-mono mt-1">Code: ${e.eventNo} | Date: ${e.date}</p></div></div>`).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Right: Trainer Direct Messages -->
+                        <div class="bg-darkSurface border border-gray-800 p-4 rounded-2xl flex flex-col relative shadow-inner h-[220px] overflow-y-auto custom-scrollbar">
+                            <h4 class="text-[10px] uppercase font-bold text-gray-500 tracking-wider flex items-center mb-4 sticky top-0 bg-darkSurface/90 backdrop-blur-sm z-10 pb-2 border-b border-gray-800/60">
+                                <i class="ph ph-chat-text mr-1.5 text-indigo-400 animate-pulse text-sm"></i> Trainer Messages
+                            </h4>
+                            <div class="space-y-3">
+                                ${(m.trainerMessages || []).length === 0
+                                    ? `<p class="text-gray-600 text-[10px] italic py-8 text-center border border-dashed border-gray-800/60 rounded-xl bg-black/10">No direct messages from your trainer yet.</p>`
+                                    : m.trainerMessages.map(msg => `
+                                        <div class="bg-indigo-950/20 border border-indigo-500/20 p-3 rounded-xl flex items-start space-x-2">
+                                            <i class="ph ph-chat-text text-indigo-400 mt-0.5 text-base drop-shadow-[0_0_5px_rgba(99,102,241,0.5)]"></i>
+                                            <div>
+                                                <p class="text-indigo-100 text-xs leading-relaxed">${msg.message}</p>
+                                                <p class="text-indigo-300 text-[8px] font-mono mt-1">From: ${msg.trainerName} | ${msg.date}</p>
+                                            </div>
+                                        </div>
+                                    `).reverse().join('')}
+                            </div>
                         </div>
                     </div>
 
@@ -318,22 +361,63 @@ function getFighterPortalView() {
 
         tabContent = `
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Left: Today's Routine -->
-                <div class="lg:col-span-1 bg-darkSurface border border-gray-800 p-6 rounded-2xl flex flex-col justify-between shadow-xl">
-                    <div class="space-y-4">
-                        <h4 class="text-gray-400 font-bold tracking-wide text-xs uppercase border-b border-gray-800/60 pb-3 mb-2 flex items-center">
-                            <i class="ph ph-barbell text-brandRed mr-2 text-base"></i>Today's Routine (Assigned by ${trainerName})
-                        </h4>
-                        <div class="bg-black/30 border border-gray-800/80 p-4 rounded-xl text-left min-h-[150px]">
-                            <div class="font-mono text-xs text-gray-300 whitespace-pre-wrap">${m.todaysRoutine || "No routine set for today."}</div>
+                <!-- Left: Today's Routine & Fighter Arena Profile -->
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="bg-darkSurface border border-gray-800 p-6 rounded-2xl flex flex-col justify-between shadow-xl">
+                        <div class="space-y-4">
+                            <h4 class="text-gray-400 font-bold tracking-wide text-xs uppercase border-b border-gray-800/60 pb-3 mb-2 flex items-center">
+                                <i class="ph ph-barbell text-brandRed mr-2 text-base"></i>Today's Routine (Assigned by ${trainerName})
+                            </h4>
+                            <div class="bg-black/30 border border-gray-800/80 p-4 rounded-xl text-left min-h-[150px]">
+                                <div class="font-mono text-xs text-gray-300 whitespace-pre-wrap">${m.todaysRoutine || "No routine set for today."}</div>
+                            </div>
+                        </div>
+                        <div class="mt-6 border-t border-gray-800/60 pt-4 flex items-center justify-between text-[10px] text-gray-500 font-mono">
+                            <span>Status:</span>
+                            ${m.routineCompleted 
+                                ? `<span class="bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded font-black uppercase">Completed ✓</span>`
+                                : `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded font-black uppercase">Active / In Progress</span>`
+                            }
                         </div>
                     </div>
-                    <div class="mt-6 border-t border-gray-800/60 pt-4 flex items-center justify-between text-[10px] text-gray-500 font-mono">
-                        <span>Status:</span>
-                        ${m.routineCompleted 
-                            ? `<span class="bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded font-black uppercase">Completed ✓</span>`
-                            : `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded font-black uppercase">Active / In Progress</span>`
-                        }
+
+                    <!-- Fighter Arena Profile Details (Dynamically Fetched) -->
+                    <div class="bg-darkSurface border border-gray-800 p-5 rounded-2xl shadow-lg relative overflow-hidden">
+                        <i class="ph ph-user-focus absolute -right-4 -bottom-4 text-7xl text-gray-800/10"></i>
+                        <h4 class="text-gray-500 text-[10px] uppercase font-bold tracking-wider mb-3.5 border-b border-gray-800/60 pb-2 relative z-10 flex justify-between items-center">
+                            <span><i class="ph ph-shield-check text-indigo-400 mr-1.5 text-sm"></i>Fighter Arena Profile</span>
+                            <button onclick="window.editFighterArenaProfile('${m.id}')" class="text-indigo-400 hover:text-indigo-300 transition-colors" title="Edit Arena Profile"><i class="ph ph-pencil-simple text-xs"></i></button>
+                        </h4>
+                        <div class="grid grid-cols-2 gap-3.5 relative z-10">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg text-lg"><i class="ph ph-medal"></i></div>
+                                <div>
+                                    <p class="text-gray-500 text-[8px] uppercase font-bold">Belt Rank</p>
+                                    <span class="text-white text-xs font-bold font-mono">${m.beltRank || 'White Belt'}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2.5">
+                                <div class="p-2 bg-amber-500/10 text-amber-400 rounded-lg text-lg"><i class="ph ph-trophy"></i></div>
+                                <div>
+                                    <p class="text-gray-500 text-[8px] uppercase font-bold">Fight Record</p>
+                                    <span class="text-white text-xs font-bold font-mono">${m.fightRecord || '0 - 0 - 0'}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2.5">
+                                <div class="p-2 bg-orange-500/10 text-orange-400 rounded-lg text-lg"><i class="ph ph-fire"></i></div>
+                                <div>
+                                    <p class="text-gray-500 text-[8px] uppercase font-bold">Attendance Streak</p>
+                                    <span class="text-white text-xs font-bold font-mono">${m.streak || 0} Days</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2.5">
+                                <div class="p-2 bg-red-500/10 text-red-500 rounded-lg text-lg"><i class="ph ph-heartbeat"></i></div>
+                                <div class="min-w-0">
+                                    <p class="text-gray-500 text-[8px] uppercase font-bold">Medical History</p>
+                                    <span class="text-white text-xs font-bold truncate block" title="${window.getFighterMedicalHistory(m)}">${window.getFighterMedicalHistory(m)}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -924,8 +1008,8 @@ window.submitFighterBooking = function(memberId, productId) {
     window.FIGHTER_PRODUCT_ORDERS.push(newOrder);
 
     const persist = () => {
-        if (window.dbService && window.dbService.addDocument) {
-            return window.dbService.addDocument('orders', newOrder, memberId)
+        if (window.dbService && window.dbService.setDocument) {
+            return window.dbService.setDocument('orders', newOrder.id, newOrder)
                 .then(() => {
                     window.closeFighterBookingModal();
                     alert(`✅ BOOKING CONFIRMED!\n\n"${product.name}" booked via ${payMode}.\nOrder ID: ${newOrder.id}\n\nYour order will appear in "My Orders" and the admin will dispatch it shortly.`);
@@ -944,6 +1028,50 @@ window.submitFighterBooking = function(memberId, productId) {
     };
 
     persist();
+};
+
+window.editFighterArenaProfile = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return;
+    
+    const record = member.fightRecord || "0 - 0 - 0";
+    const recordParts = record.split('-').map(s => parseInt(s.trim(), 10) || 0);
+    const wins = recordParts[0] !== undefined ? recordParts[0] : 0;
+    const losses = recordParts[1] !== undefined ? recordParts[1] : 0;
+    const draws = recordParts[2] !== undefined ? recordParts[2] : 0;
+
+    const newBelt = prompt(`Update Belt Rank:\n(Current: ${member.beltRank || 'White Belt'})`, member.beltRank || 'White Belt');
+    if(newBelt === null) return; // user cancelled
+
+    const newWins = prompt(`Update Wins count:\n(Current: ${wins})`, wins);
+    if(newWins === null) return; // user cancelled
+
+    const newLosses = prompt(`Update Losses count:\n(Current: ${losses})`, losses);
+    if(newLosses === null) return; // user cancelled
+
+    const newDraws = prompt(`Update Draws count:\n(Current: ${draws})`, draws);
+    if(newDraws === null) return; // user cancelled
+
+    member.beltRank = newBelt.trim() || 'White Belt';
+    member.fightRecord = `${parseInt(newWins, 10) || 0} - ${parseInt(newLosses, 10) || 0} - ${parseInt(newDraws, 10) || 0}`;
+
+    try {
+        localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+    } catch(e) {}
+
+    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+        window.dbService.setDocument('members', member.id, member)
+            .then(() => {
+                console.log('[Firestore] Fighter arena profile updated:', member.id);
+                navigateTo('fighter-portal');
+            })
+            .catch(e => {
+                console.error('[Firestore] Save member failed:', e.message);
+                navigateTo('fighter-portal');
+            });
+    } else {
+        navigateTo('fighter-portal');
+    }
 };
 
 
