@@ -5,6 +5,12 @@
 let loggedInTrainer = null;
 let trainerCurrentTab = 'dashboard';
 
+// Pre-populate user's Gemini API key if not set or contains the old failed key
+const currentStoredKey = localStorage.getItem('GEMINI_API_KEY');
+if (!currentStoredKey || currentStoredKey === 'AQ.Ab8RN6LVGGuYcn7Gzr08rkXRUjmI8CsVUdQ_x8x0JbC7BtmCMA') {
+    localStorage.setItem('GEMINI_API_KEY', 'AQ.Ab8RN6KroA6uyJAMjLoDp1eQ_KfoYA9BVvdFC1-Vtq7S31MKSw');
+}
+
 if (!window.getFighterMedicalHistory) {
     window.getFighterMedicalHistory = function(member) {
         const data = member.assessmentData;
@@ -363,9 +369,14 @@ function getTrainerPortalView() {
                     `;
                 } else {
                     actionBtn = `
-                        <button onclick="window.openDietChartModal('${f.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] px-4 py-2.5 rounded-xl uppercase tracking-wider transition-colors shadow">
-                            Update Diet
-                        </button>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <button onclick="window.openDietChartModal('${f.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] px-4 py-2.5 rounded-xl uppercase tracking-wider transition-colors shadow">
+                                Update Diet
+                            </button>
+                            <button onclick="window.generateDietDirectlyFromList('${f.id}')" class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-extrabold text-[11px] px-4 py-2.5 border border-indigo-500/20 rounded-xl uppercase tracking-wider transition-colors shadow flex items-center justify-center">
+                                <i class="ph ph-sparkle mr-1.5 text-sm animate-pulse"></i> AI Generate
+                            </button>
+                        </div>
                     `;
                 }
 
@@ -1396,6 +1407,20 @@ window.openDietChartModal = function(memberId) {
     if (!modal) return;
 
     const dietChart = member.dietChart || "";
+    const data = member.assessmentData || {};
+    const goal = data.fitnessGoal || "";
+    const habit = data.foodHabit || "";
+
+    const isVeg = (habit.toLowerCase().includes('veg') && !habit.toLowerCase().includes('non'));
+    const isEgg = habit.toLowerCase().includes('egg');
+    const isVegan = habit.toLowerCase().includes('vegan');
+    const isNonVeg = !isVeg && !isEgg && !isVegan;
+
+    const isWeightLoss = goal.toLowerCase().includes('loss') || goal.toLowerCase().includes('cut') || goal.toLowerCase().includes('slim');
+    const isGain = goal.toLowerCase().includes('gain') || goal.toLowerCase().includes('bulk') || goal.toLowerCase().includes('build');
+    const isPerformance = goal.toLowerCase().includes('perform') || goal.toLowerCase().includes('endur') || goal.toLowerCase().includes('stamina') || goal.toLowerCase().includes('strength');
+
+    const savedApiKey = localStorage.getItem('GEMINI_API_KEY') || "";
 
     modal.innerHTML = `
         <div class="bg-gradient-to-br from-gray-900 via-darkBg to-black border border-gray-800 p-[2px] rounded-2xl w-[95%] max-w-lg shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
@@ -1416,6 +1441,61 @@ window.openDietChartModal = function(memberId) {
                 
                 <!-- BODY -->
                 <div class="space-y-4 z-10">
+                    <!-- Gemini AI Assistant Panel -->
+                    <div class="bg-indigo-950/20 border border-indigo-500/20 rounded-xl p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-indigo-400 font-extrabold text-[10px] uppercase tracking-wider flex items-center">
+                                <i class="ph ph-sparkle mr-1.5 text-sm animate-pulse"></i> Gemini AI Assistant
+                            </span>
+                            <button type="button" onclick="window.toggleAIPrefs()" class="text-gray-400 hover:text-white text-[10px] flex items-center space-x-1 transition-colors">
+                                <span id="prefs-toggle-text">Show Preferences</span> <i class="ph ph-caret-down" id="prefs-toggle-icon"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Collapsible AI Preferences -->
+                        <div id="ai-prefs-container" class="hidden space-y-2 border-t border-gray-800/40 pt-2 text-[10px]">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-gray-450 block mb-1">Target Goal</label>
+                                    <select id="ai-target-goal" class="w-full bg-black/60 border border-gray-800 rounded px-2.5 py-1 text-white outline-none">
+                                        <option value="Weight Cut / Weight Loss" ${isWeightLoss ? 'selected' : ''}>Weight Cut / Weight Loss</option>
+                                        <option value="Lean Muscle Gain" ${isGain ? 'selected' : ''}>Lean Muscle Gain</option>
+                                        <option value="Endurance & Performance" ${isPerformance ? 'selected' : ''}>Endurance & Performance</option>
+                                        <option value="General Health / Maintenance" ${(!isWeightLoss && !isGain && !isPerformance) ? 'selected' : ''}>General Health / Maintenance</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-gray-450 block mb-1">Dietary Preference</label>
+                                    <select id="ai-diet-type" class="w-full bg-black/60 border border-gray-800 rounded px-2.5 py-1 text-white outline-none">
+                                        <option value="Non-Vegetarian" ${isNonVeg ? 'selected' : ''}>Non-Vegetarian</option>
+                                        <option value="Vegetarian" ${isVeg ? 'selected' : ''}>Vegetarian</option>
+                                        <option value="Eggitarian" ${isEgg ? 'selected' : ''}>Eggitarian</option>
+                                        <option value="Vegan" ${isVegan ? 'selected' : ''}>Vegan</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <button type="button" onclick="window.generateDietWithAI('${member.id}')" id="btn-generate-ai" class="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-2 px-3 rounded-lg text-[10px] uppercase tracking-wider transition-all shadow-md flex items-center justify-center space-x-1.5">
+                                <i class="ph ph-sparkle"></i> <span>Generate 7-Day Plan</span>
+                            </button>
+                            <button type="button" onclick="window.toggleKeySettings()" class="bg-black/40 border border-gray-800 hover:bg-gray-800 text-gray-400 hover:text-white p-2 rounded-lg transition-all" title="Gemini API Key Settings">
+                                <i class="ph ph-key"></i>
+                            </button>
+                        </div>
+
+                        <!-- Collapsible API Key Settings -->
+                        <div id="api-key-container" class="hidden space-y-2 border-t border-gray-800/40 pt-2 text-[10px] text-left">
+                            <label class="text-gray-400 font-bold uppercase tracking-wider text-[8px] block">Gemini API Key</label>
+                            <div class="flex space-x-2">
+                                <input type="password" id="gemini-api-key" value="${savedApiKey}" placeholder="Paste API Key (AIzaSy...)" class="flex-1 bg-black/50 border border-gray-800 focus:border-indigo-500 rounded-lg px-2.5 py-1.5 text-[10px] text-white outline-none font-mono">
+                                <button type="button" onclick="window.saveApiKey()" class="bg-indigo-600/30 hover:bg-indigo-600 border border-indigo-500/30 hover:border-indigo-500 text-indigo-300 hover:text-white px-3 py-1.5 rounded-lg font-bold transition-all">Save</button>
+                            </div>
+                            <p class="text-[9px] text-gray-500">Get a free key from <a href="https://aistudio.google.com/" target="_blank" class="text-indigo-400 hover:underline">Google AI Studio</a>.</p>
+                        </div>
+                    </div>
+
                     <div>
                         <label class="text-gray-400 font-bold uppercase tracking-wider text-[10px] block mb-2">Active Diet Chart Details</label>
                         <textarea id="edit-diet-text" rows="8" placeholder="Enter daily diet plan (e.g. Breakfast: Oats... Lunch: Chicken Rice...)" class="w-full bg-black/50 border border-gray-800 focus:border-indigo-500 rounded-xl p-3.5 text-xs text-white resize-none outline-none font-mono leading-relaxed">${dietChart}</textarea>
@@ -1439,6 +1519,226 @@ window.openDietChartModal = function(memberId) {
     }, 10);
 };
 
+// Toggle helpers
+window.toggleAIPrefs = function() {
+    const container = document.getElementById('ai-prefs-container');
+    const icon = document.getElementById('prefs-toggle-icon');
+    const text = document.getElementById('prefs-toggle-text');
+    if (!container || !icon) return;
+
+    if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+        icon.classList.remove('ph-caret-down');
+        icon.classList.add('ph-caret-up');
+        text.innerText = "Hide Preferences";
+    } else {
+        container.classList.add('hidden');
+        icon.classList.remove('ph-caret-up');
+        icon.classList.add('ph-caret-down');
+        text.innerText = "Show Preferences";
+    }
+};
+
+window.toggleKeySettings = function() {
+    const container = document.getElementById('api-key-container');
+    if (!container) return;
+    container.classList.toggle('hidden');
+};
+
+window.toggleApiKeyVisibility = function() {
+    const input = document.getElementById('gemini-api-key');
+    const icon = document.getElementById('toggle-key-icon');
+    if (!input || !icon) return;
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('ph-eye');
+        icon.classList.add('ph-eye-closed');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('ph-eye-closed');
+        icon.classList.add('ph-eye');
+    }
+};
+
+window.saveApiKey = function() {
+    const keyInput = document.getElementById('gemini-api-key');
+    if (!keyInput) return;
+    const key = keyInput.value.trim();
+    if (!key) {
+        alert("Please enter a valid API key.");
+        return;
+    }
+    localStorage.setItem('GEMINI_API_KEY', key);
+    alert("Gemini API Key saved successfully!");
+    
+    // Auto collapse after saving
+    const container = document.getElementById('api-key-container');
+    if (container) container.classList.add('hidden');
+};
+
+window.generateDietWithAI = function(memberId) {
+    const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
+    if (!member) return alert("Error: Member not found.");
+
+    const apiKeyInput = document.getElementById('gemini-api-key');
+    let apiKey = (apiKeyInput ? apiKeyInput.value.trim() : '') || localStorage.getItem('GEMINI_API_KEY') || '';
+    
+    if (!apiKey) {
+        alert("Please configure your Google Gemini API Key first.");
+        const keyContainer = document.getElementById('api-key-container');
+        if (keyContainer) keyContainer.classList.remove('hidden');
+        if (apiKeyInput) apiKeyInput.focus();
+        return;
+    }
+
+    const goal = document.getElementById('ai-target-goal').value;
+    const dietType = document.getElementById('ai-diet-type').value;
+
+    const btn = document.getElementById('btn-generate-ai');
+    if (!btn) return;
+    
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<i class="ph ph-spinner animate-spin mr-1"></i> <span>Generating Plan...</span>`;
+    btn.classList.add('opacity-75', 'cursor-not-allowed');
+
+    const data = member.assessmentData || {};
+    
+    let prompt = `You are a professional Clinical Nutritionist and Fitness Coach. Create a highly personalized 7-day diet chart/nutrition plan for a gym member based on the following Client Health Assessment details:
+
+Client Profile Details:
+- Name: ${member.name}
+- Gender: ${data.gender || 'Not specified'}
+- Fighter/Training Level: ${data.fighterLevel || member.plan || 'Regular active member'}
+- Weekly Training Frequency: ${data.weeklyTrainingDays ? data.weeklyTrainingDays + ' days/week' : 'Not specified'}
+- Medical History/Considerations: ${member.medicalHistory || 'None'} ${data.medicalElaboration ? '(' + data.medicalElaboration + ')' : ''}
+- Daily Sleep: ${data.lifestyleSleep || '8'} hours
+- Daily Water Intake: ${data.dietWaterIntake || '8'} glasses
+- Lifestyle Stress Level (1-10): ${data.lifestyleStress || '5'}
+- Current Supplements: ${data.dietSupplementsList || 'None'}
+- Food Habits/Preferences: ${dietType}
+- Target Goal selected by trainer: ${goal}
+`;
+
+    if (data.fitnessGoal) {
+        prompt += `- General Goals declared by member: ${data.fitnessGoal}\n`;
+    }
+    if (data.dietMealFrequency) {
+        prompt += `- Preferred Meal Frequency: ${data.dietMealFrequency} meals per day\n`;
+    }
+    if (data.dietEnergyDrops === 'yes') {
+        prompt += `- Notes: Experiences energy drops during the day, specifically around: ${data.dietEnergyDropsWhen || 'mid-afternoon'}. Customize snacks/meals to prevent this.\n`;
+    }
+
+    prompt += `\nInstructions:
+1. Provide a detailed 7-day meal plan including Breakfast, Lunch, Snack, and Dinner. Organize as DAY 1 to DAY 7.
+2. The diet plan must follow ICMR (Indian Council of Medical Research) Indian food grade standards.
+3. Suggest healthy, easy-to-cook options suitable for a busy professional lifestyle (quick preparation, standard Indian/continental healthy items).
+4. For EACH individual meal (Breakfast, Lunch, Snack, Dinner) and for the daily total, provide a rough estimate of macronutrients (Protein, Carbohydrates, and Fats in grams).
+5. Suggest hydration, recovery guidelines, and supplement recommendations based on their assessment.
+6. Keep the tone encouraging, supportive, and professional.
+7. The output must be written in clean, readable, professional text format, with spacing and headings, ready for copy-pasting. Do not use Markdown formatting symbols (like asterisks or hashtags) in the text itself so it looks clean in the plain textarea. Use plain CAPITAL headings (e.g. DAY 1, BREAKFAST, LUNCH) instead of markdown # or **.`;
+
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'];
+
+    window.runGeminiWithFallbackChain = function(models, index, apiKey, prompt, btn, originalHTML) {
+        if (index >= models.length) {
+            alert("❌ AI Generation Failed: All model fallbacks failed. Please check your API key, region, and network connection.");
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            return;
+        }
+
+        const model = models[index];
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        console.log(`[Gemini AI] Attempting generation with model: ${model}...`);
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    const msg = err.error?.message || "";
+                    if (response.status === 404 || msg.includes("not found") || msg.includes("not supported")) {
+                        console.warn(`[Gemini AI] Model ${model} failed (404/not supported), trying next fallback...`);
+                        return window.runGeminiWithFallbackChain(models, index + 1, apiKey, prompt, btn, originalHTML);
+                    }
+                    throw new Error(msg || `API request failed with status ${response.status}`);
+                });
+            }
+            return response.json().then(result => {
+                if (result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0]) {
+                    const generatedText = result.candidates[0].content.parts[0].text;
+                    const textarea = document.getElementById('edit-diet-text');
+                    if (textarea) {
+                        textarea.value = generatedText;
+                        textarea.classList.add('ring-2', 'ring-indigo-500');
+                        setTimeout(() => {
+                            textarea.classList.remove('ring-2', 'ring-indigo-500');
+                        }, 1000);
+                    }
+                    alert("✅ 7-Day Nutrition Plan generated successfully! You can review, edit, and click 'Save Diet Chart' to apply it.");
+                } else {
+                    throw new Error("Invalid response format from Gemini API.");
+                }
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            });
+        })
+        .catch(err => {
+            console.error(`[Gemini AI] Generation failed for model ${model}:`, err);
+            alert(`❌ AI Generation Failed: ${err.message || 'Check your internet connection and API key.'}`);
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('opacity-75', 'cursor-not-allowed');
+        });
+    };
+
+    // First try to list available models programmatically using the API key
+    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    fetch(listUrl)
+    .then(res => {
+        if (!res.ok) throw new Error("ListModels failed");
+        return res.json();
+    })
+    .then(data => {
+        if (data.models && data.models.length > 0) {
+            const allowed = data.models
+                .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+                .map(m => m.name.replace('models/', ''));
+            
+            if (allowed.length > 0) {
+                const preferred = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+                const sorted = allowed.sort((a, b) => {
+                    const idxA = preferred.indexOf(a);
+                    const idxB = preferred.indexOf(b);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    if (idxA !== -1) return -1;
+                    if (idxB !== -1) return 1;
+                    return 0;
+                });
+                console.log("[Gemini AI] Dynamically selected best available model: " + sorted[0]);
+                window.runGeminiWithFallbackChain([sorted[0]], 0, apiKey, prompt, btn, originalHTML);
+                return;
+            }
+        }
+        throw new Error("No generateContent models found");
+    })
+    .catch(err => {
+        console.warn("[Gemini AI] Could not query ListModels, running hardcoded fallback chain...", err);
+        window.runGeminiWithFallbackChain(modelsToTry, 0, apiKey, prompt, btn, originalHTML);
+    });
+};
+
 window.saveDietChart = function(memberId) {
     const member = window.MOCK_MEMBERS.find(m => m.id === memberId);
     if (!member) return alert("Error: Member not found.");
@@ -1458,6 +1758,13 @@ window.saveDietChart = function(memberId) {
     alert(`Diet chart for ${member.name} updated successfully.`);
     window.closeTrainerModal();
     navigateTo('trainer-portal');
+};
+
+window.generateDietDirectlyFromList = function(memberId) {
+    window.openDietChartModal(memberId);
+    setTimeout(() => {
+        window.generateDietWithAI(memberId);
+    }, 200);
 };
 
 // =========================================================================

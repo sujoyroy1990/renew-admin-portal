@@ -452,26 +452,89 @@ function renderAIAnalysisReport() {
     const container = document.getElementById('ai-analysis-container');
     if (!container) return;
 
-    if (!showAIReport) {
+    // Check if the 15-day audit is overdue using the same logic as the banner
+    const auditState = typeof window.checkFinancialAuditSchedule === 'function' ? window.checkFinancialAuditSchedule() : null;
+
+    if (auditState && auditState.overdue) {
         container.innerHTML = `
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl text-xl"><i class="ph ph-brain"></i></div>
-                    <div><h4 class="text-white text-xs font-bold uppercase tracking-wider">AI Audit Financial Analysis Report</h4><p class="text-[11px] text-gray-500 mt-0.5">Let R.E.N.E.W AI run an internal audit check on your revenue health index.</p></div>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-fadeIn">
+                <div class="flex items-center space-x-3 text-left">
+                    <div class="p-2.5 bg-red-500/10 text-brandRed rounded-xl text-xl animate-pulse">
+                        <i class="ph ph-warning-circle"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-white text-xs font-bold uppercase tracking-wider flex items-center">
+                            AI Executive Financial Audit Overdue
+                            <span class="ml-2 px-2 py-0.5 text-[9px] bg-brandRed/20 text-brandRed font-black rounded-full animate-pulse">ACTION REQUIRED</span>
+                        </h4>
+                        <p class="text-[10px] text-gray-400 mt-1">
+                            Last audit was: <span class="text-indigo-400 font-bold">${auditState.days === 'Never' ? 'Never' : auditState.days + ' days ago'}</span>. 
+                            A new AI forensic audit is recommended every 15 days to optimize profit and prevent leakage.
+                        </p>
+                    </div>
                 </div>
-                <button onclick="window.toggleAIReportView(true)" class="border border-purple-500/30 bg-purple-950/20 hover:bg-purple-900 text-purple-300 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1"><i class="ph ph-sparkle"></i><span>Run AI Audit</span></button>
+                <button onclick="window.openAIFinancialAuditModal()" class="bg-brandRed hover:bg-red-700 text-white text-[10px] font-black px-4 py-2.5 rounded-xl uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,0,51,0.3)] hover:shadow-[0_0_25px_rgba(255,0,51,0.5)] flex items-center space-x-1.5 shrink-0">
+                    <i class="ph ph-sparkle animate-pulse"></i> <span>Run AI Executive Audit</span>
+                </button>
             </div>
         `;
         return;
     }
+
+    // Audit is up-to-date
+    if (!showAIReport) {
+        container.innerHTML = `
+            <div class="flex items-center justify-between text-left">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl text-xl"><i class="ph ph-brain"></i></div>
+                    <div>
+                        <h4 class="text-white text-xs font-bold uppercase tracking-wider">AI Audit Financial Analysis Report</h4>
+                        <p class="text-[10px] text-gray-400 mt-0.5">Let R.E.N.E.W AI run an internal audit check on your revenue health index.</p>
+                    </div>
+                </div>
+                <button onclick="window.toggleAIReportView(true)" class="border border-purple-500/30 bg-purple-950/20 hover:bg-purple-900 text-purple-300 text-[10px] font-black px-3.5 py-2 rounded-xl transition-all flex items-center space-x-1 uppercase tracking-wider">
+                    <i class="ph ph-sparkle"></i><span>View Insights</span>
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    const savedReport = localStorage.getItem('RENEW_LAST_FINANCIAL_AUDIT_REPORT') || "";
+    let reportContentHTML = "";
+
+    if (savedReport) {
+        reportContentHTML = `
+            <div class="bg-black/30 border border-gray-900 rounded-xl p-4 font-mono text-[10px] text-gray-300 leading-relaxed max-h-[300px] overflow-y-auto whitespace-pre-wrap text-left custom-scrollbar">
+                ${savedReport}
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick="window.openAIFinancialAuditModal()" class="text-purple-400 hover:text-purple-300 text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1">
+                    <i class="ph ph-sliders"></i> <span>Open Forensic Audit Suite</span>
+                </button>
+            </div>
+        `;
+    } else {
+        reportContentHTML = `
+            <div class="text-xs text-gray-300 space-y-2 leading-relaxed text-left">
+                <p>💥 <strong class="text-purple-300">Revenue Runway Alert:</strong> Your Net Cash Balance is stable but currently exposed to <span class="text-red-400 font-bold">₹10,000 in Overdue Bad Debt</span>.</p>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick="window.openAIFinancialAuditModal()" class="text-purple-400 hover:text-purple-300 text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1">
+                    <i class="ph ph-sparkle"></i> <span>Run New Audit Analysis</span>
+                </button>
+            </div>
+        `;
+    }
+
     container.innerHTML = `
-        <div class="flex justify-between items-start border-b border-purple-900/30 pb-3 mb-3">
-            <div class="flex items-center space-x-2 text-purple-400 text-xs font-bold uppercase tracking-wider"><i class="ph ph-sparkle"></i><span>Live AI Executive Financial Audit Insights</span></div>
-            <button onclick="window.toggleAIReportView(false)" class="text-gray-500 hover:text-white text-xs font-mono">Collapse [X]</button>
+        <div class="flex justify-between items-start border-b border-purple-900/30 pb-3 mb-3 text-left">
+            <div class="flex items-center space-x-2 text-purple-400 text-xs font-bold uppercase tracking-wider">
+                <i class="ph ph-sparkle animate-pulse"></i><span>Live AI Executive Financial Audit Insights</span>
+            </div>
+            <button onclick="window.toggleAIReportView(false)" class="text-gray-500 hover:text-white text-[10px] font-mono uppercase font-bold tracking-wider">Collapse [X]</button>
         </div>
-        <div class="text-xs text-gray-300 space-y-2 leading-relaxed">
-            <p>💥 <strong class="text-purple-300">Revenue Runway Alert:</strong> Your Net Cash Balance is stable but currently exposed to <span class="text-red-400 font-bold">₹10,000 in Overdue Bad Debt</span>.</p>
-        </div>
+        ${reportContentHTML}
     `;
 }
 

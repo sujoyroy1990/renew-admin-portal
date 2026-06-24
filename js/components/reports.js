@@ -12,6 +12,10 @@ function getReportsView() {
                     <p class="text-xs text-gray-400 mt-1">10-Point Growth Visualizers & 20+ Deep-Dive Micro Reports Repository.</p>
                 </div>
                 <div class="flex gap-3 relative z-10">
+                    <button onclick="window.openAIFinancialAuditModal()" class="bg-indigo-600 hover:bg-indigo-750 text-white text-xs font-bold px-6 py-3 rounded-xl flex items-center space-x-2 transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] hover:shadow-[0_0_25px_rgba(99,102,241,0.5)] uppercase tracking-wider">
+                        <i class="ph ph-sparkle text-lg animate-pulse"></i>
+                        <span>AI Financial Audit</span>
+                    </button>
                     <button onclick="window.generateMasterReport()" class="bg-brandRed hover:bg-red-700 text-white text-xs font-bold px-6 py-3 rounded-xl flex items-center space-x-2 transition-all shadow-[0_0_15px_rgba(255,0,51,0.4)] hover:shadow-[0_0_25px_rgba(255,0,51,0.6)] uppercase tracking-wider">
                         <i class="ph ph-file-pdf text-lg animate-pulse"></i>
                         <span>Export Master Report</span>
@@ -72,8 +76,6 @@ function getReportsView() {
                     </ul>
                 </div>
             </div>
-
-            <div id="report-gen-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300"></div>
         </div>
     `;
 }
@@ -967,4 +969,376 @@ window.generateMasterReport = function() {
         const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
         alert(`✅ R.E.N.E.W MASTER REPORT READY\n\nThe full encrypted PDF Executive Report for ${dateStr} has been successfully generated and saved to your device downloads folder!`);
     }, 3500);
+};
+
+// =========================================================================
+// AI AUDIT FINANCIAL ANALYSIS REPORT (15-DAY CYCLE)
+// =========================================================================
+
+window.checkFinancialAuditSchedule = function() {
+    const lastRun = localStorage.getItem('RENEW_LAST_FINANCIAL_AUDIT');
+    const isScheduled = localStorage.getItem('RENEW_FINANCIAL_AUDIT_SCHEDULED') !== 'false';
+    if (!isScheduled) return null;
+
+    if (!lastRun) {
+        return { overdue: true, days: 'Never' };
+    }
+
+    const lastDate = new Date(lastRun);
+    const today = new Date();
+    const diffTime = today - lastDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays >= 15) {
+        return { overdue: true, days: diffDays };
+    }
+    return null;
+};
+
+
+
+window.openAIFinancialAuditModal = function() {
+    const modal = document.getElementById('report-gen-modal');
+    if (!modal) return;
+
+    const txns = window.MOCK_TRANSACTIONS || [];
+    
+    let totalIncome = 0;
+    let totalExpense = 0;
+    const categorySummary = {};
+    const modeSummary = {};
+    
+    txns.forEach(t => {
+        const amt = parseFloat(t.amount) || 0;
+        if (t.type === 'income') {
+            totalIncome += amt;
+        } else if (t.type === 'expense') {
+            totalExpense += amt;
+        }
+        
+        const cat = t.category || 'other';
+        categorySummary[cat] = (categorySummary[cat] || 0) + amt;
+        
+        const mode = t.mode || 'cash';
+        modeSummary[mode] = (modeSummary[mode] || 0) + amt;
+    });
+    
+    const profitLoss = totalIncome - totalExpense;
+    const lastRun = localStorage.getItem('RENEW_LAST_FINANCIAL_AUDIT');
+    const isScheduled = localStorage.getItem('RENEW_FINANCIAL_AUDIT_SCHEDULED') !== 'false';
+    const savedApiKey = localStorage.getItem('GEMINI_API_KEY') || "";
+
+    modal.innerHTML = `
+        <div class="bg-gradient-to-br from-gray-900 via-darkBg to-black border border-gray-800 p-[2px] rounded-2xl w-[95%] max-w-3xl shadow-2xl relative transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="bg-darkBg/95 rounded-[14px] p-6 flex flex-col relative text-xs text-left overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-24 bg-brandRed/5 blur-2xl"></div>
+                <button onclick="window.closeReportModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg"><i class="ph ph-x"></i></button>
+                
+                <!-- HEADER -->
+                <div class="flex items-center space-x-3 border-b border-gray-800 pb-4 mb-4 z-10">
+                    <div class="w-10 h-10 bg-indigo-950/10 text-indigo-400 rounded-xl flex items-center justify-center border border-indigo-500/20">
+                        <i class="ph ph-sparkle text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-white text-base">AI Audit Financial Analysis Report</h3>
+                        <p class="text-[10px] text-gray-500 uppercase font-mono">15-Day Auto-Scheduler & Audit Suite</p>
+                    </div>
+                </div>
+                
+                <!-- BODY -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 z-10 max-h-[480px] overflow-y-auto pr-1 custom-scrollbar">
+                    
+                    <!-- Left Column: Metrics & Scheduler -->
+                    <div class="md:col-span-1 space-y-4">
+                        <div class="bg-black/40 border border-gray-800/80 p-4 rounded-xl space-y-2">
+                            <h4 class="text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-800/60 pb-1.5 mb-2">15-Day Schedule</h4>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-500 font-sans font-bold">15-Day Reminder:</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="audit-scheduler-toggle" ${isScheduled ? 'checked' : ''} onchange="window.toggleAuditScheduleSetting()" class="sr-only peer">
+                                    <div class="w-8 h-4 bg-gray-850 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600 peer-checked:after:bg-white peer-checked:after:border-indigo-650"></div>
+                                </label>
+                            </div>
+                            
+                            <div class="text-[10px] text-gray-400 font-mono space-y-1 pt-1.5 border-t border-gray-800/40">
+                                <div>Last Run: <span class="text-gray-300 font-bold">${lastRun ? new Date(lastRun).toLocaleDateString() : 'Never'}</span></div>
+                                <div>Status: <span class="${window.checkFinancialAuditSchedule() ? 'text-brandRed animate-pulse font-bold' : 'text-green-400 font-bold'}">${window.checkFinancialAuditSchedule() ? 'Audit Overdue' : 'Up to Date'}</span></div>
+                            </div>
+                        </div>
+
+                        <!-- System Ledger Summary (Pre-audited data) -->
+                        <div class="bg-black/40 border border-gray-800/80 p-4 rounded-xl space-y-2.5">
+                            <h4 class="text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-800/60 pb-1.5">Ledger Summary</h4>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Total Income:</span>
+                                <span class="text-green-400 font-bold font-mono">₹${totalIncome.toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Total Expense:</span>
+                                <span class="text-brandRed font-bold font-mono">₹${totalExpense.toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between border-t border-gray-800 pt-2">
+                                <span class="text-white font-bold">Net Margin:</span>
+                                <span class="font-bold font-mono ${profitLoss >= 0 ? 'text-green-400' : 'text-brandRed'}">₹${profitLoss.toLocaleString()}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Actions & API Key -->
+                        <div class="space-y-2">
+                            <button onclick="window.runAIFinancialAudit()" id="btn-run-audit" class="w-full bg-brandRed hover:bg-red-700 text-white font-black py-3 rounded-xl uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(255,0,51,0.2)] hover:shadow-[0_0_25px_rgba(255,0,51,0.4)] flex items-center justify-center space-x-2 text-[10px]">
+                                <i class="ph ph-sparkle text-sm"></i>
+                                <span>Run AI Audit Report</span>
+                            </button>
+                            
+                            <div class="bg-black/30 border border-gray-800/60 p-3 rounded-xl space-y-2 text-[10px]">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-500 font-sans font-bold">Gemini Key</span>
+                                    <button type="button" onclick="window.toggleKeySettings()" class="text-gray-400 hover:text-white"><i class="ph ph-key"></i></button>
+                                </div>
+                                <div id="api-key-container" class="hidden space-y-1.5">
+                                    <input type="password" id="gemini-api-key" value="${savedApiKey}" placeholder="Paste key..." class="w-full bg-black/50 border border-gray-850 rounded px-2.5 py-1.5 text-[9px] text-white outline-none font-mono">
+                                    <button onclick="window.saveApiKey()" class="w-full bg-indigo-650 hover:bg-indigo-700 text-white text-[9px] py-1 rounded font-bold transition-all">Save Key</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column: Audit Output -->
+                    <div class="md:col-span-2 flex flex-col h-full bg-black/40 border border-gray-800/80 rounded-xl p-4 relative min-h-[300px]">
+                        <div class="flex items-center justify-between border-b border-gray-800/60 pb-2 mb-3">
+                            <h4 class="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center">
+                                <i class="ph ph-scroll mr-1.5 text-xs text-brandRed"></i> Audit Log Output
+                            </h4>
+                            <div class="flex space-x-2.5" id="audit-export-actions" style="display: none;">
+                                <button onclick="window.printAuditReport()" class="text-gray-450 hover:text-white text-sm" title="Print Report"><i class="ph ph-printer"></i></button>
+                                <button onclick="window.copyAuditReport()" class="text-gray-455 hover:text-white text-sm" title="Copy Report"><i class="ph ph-copy"></i></button>
+                            </div>
+                        </div>
+                        
+                        <textarea id="audit-report-text" readonly class="w-full h-[320px] bg-black/30 border border-gray-900 rounded-lg p-3 text-[10px] text-gray-300 font-mono leading-relaxed resize-none outline-none overflow-y-auto" placeholder="Click 'Run AI Audit Report' to compile ledgers and generate analysis using Google Gemini AI..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.firstElementChild.classList.remove('scale-95');
+        modal.firstElementChild.classList.add('scale-100');
+    }, 10);
+    modal.onclick = window.closeReportModal;
+};
+
+window.toggleAuditScheduleSetting = function() {
+    const check = document.getElementById('audit-scheduler-toggle');
+    if (!check) return;
+    localStorage.setItem('RENEW_FINANCIAL_AUDIT_SCHEDULED', check.checked ? 'true' : 'false');
+    
+    // Refresh page views to update current banner alert status
+    if (typeof navigateTo === 'function') {
+        const lastView = localStorage.getItem('RENEW_LAST_VIEW') || 'reports';
+        navigateTo(lastView);
+    }
+};
+
+window.runAIFinancialAudit = function() {
+    const apiKeyInput = document.getElementById('gemini-api-key');
+    let apiKey = (apiKeyInput ? apiKeyInput.value.trim() : '') || localStorage.getItem('GEMINI_API_KEY') || '';
+    
+    if (!apiKey) {
+        alert("Please configure your Google Gemini API Key first.");
+        const container = document.getElementById('api-key-container');
+        if (container) container.classList.remove('hidden');
+        if (apiKeyInput) apiKeyInput.focus();
+        return;
+    }
+
+    const btn = document.getElementById('btn-run-audit');
+    if (!btn) return;
+    
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<i class="ph ph-spinner animate-spin mr-1"></i> <span>Auditing Ledger...</span>`;
+    btn.classList.add('opacity-75', 'cursor-not-allowed');
+
+    const txns = window.MOCK_TRANSACTIONS || [];
+    const events = window.GYM_EVENTS || [];
+    const inventory = window.MOCK_INVENTORY || [];
+    
+    const reportData = {
+        auditDate: new Date().toLocaleDateString('en-GB'),
+        totalTransactionsCount: txns.length,
+        transactions: txns.map(t => ({
+            type: t.type,
+            category: t.category,
+            amount: t.amount,
+            date: t.date,
+            mode: t.mode,
+            description: t.description,
+            status: t.status
+        })),
+        eventsCount: events.length,
+        events: events.map(e => ({ title: e.title, amount: e.amount, date: e.date })),
+        inventoryLowStock: inventory.filter(i => i.stock <= 5).map(i => ({ name: i.name, stock: i.stock, category: i.category }))
+    };
+
+    let prompt = `You are a Senior Forensic Accountant, Financial Auditor, and Strategic Fitness Business Consultant.
+Analyze the following financial ledger data and operational state of R.E.N.E.W Gym to produce a comprehensive AI Audit & Financial Analysis Report.
+
+Gym Ledger & Operational Data:
+\${JSON.stringify(reportData, null, 2)}
+
+Provide a thorough audit containing the following sections:
+1. EXECUTIVE FINANCIAL HEALTH SUMMARY: Net profit margin, overall revenue vs expense assessment, operational runway.
+2. DETAILED REVENUE STREAM ANALYSIS: Breakdown of primary income categories (e.g. PT, Admission, Memberships, Store Sales), identifying the top performing sectors and areas underperforming.
+3. EXPENDITURE AUDIT & ANOMALIES: Analyze expenses, flag any potential leaks, abnormal category spend, or cash-flow bottlenecks.
+4. INVENTORY & OPERATIONAL IMPACT: Assess stock levels (highlight low stock items) and event bookings, connecting them to cash generation.
+5. STRATEGIC RECOMMENDATIONS (NEXT 15 DAYS): Provide 3-5 concrete, actionable, data-backed steps to increase revenue, cut overheads, and improve cash flow over the next 15 days.
+
+The output must be formatted in a clean, highly professional plain-text report layout, using capital headings and spacing. Avoid using Markdown formatting characters (asterisks, hashes, etc.) in the text itself. Use clear division lines (e.g. ========================================) between sections. Keep the tone authoritative, highly technical, and constructive.`;
+
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'];
+    
+    const textarea = document.getElementById('audit-report-text');
+    if (textarea) textarea.value = "Compiling financial ledger logs, running fraud detection filters, and preparing Google Gemini payload...";
+
+    window.runAuditWithFallbackChain = function(models, index) {
+        if (index >= models.length) {
+            alert("❌ AI Audit Failed: All model fallbacks failed. Check key and connection.");
+            if (textarea) textarea.value = "Error: Audit failed to generate. Please check your Gemini API key.";
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            return;
+        }
+
+        const model = models[index];
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        
+        if (textarea) textarea.value = `Running forensic analysis via ${model}...\nPlease wait.`;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    const msg = err.error?.message || "";
+                    console.warn(`[Gemini AI Audit] Model ${model} failed (HTTP ${response.status}): ${msg}`);
+                    return window.runAuditWithFallbackChain(models, index + 1);
+                }).catch(() => {
+                    console.warn(`[Gemini AI Audit] Model ${model} failed (HTTP ${response.status}) with unparseable response.`);
+                    return window.runAuditWithFallbackChain(models, index + 1);
+                });
+            }
+            return response.json().then(result => {
+                if (result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0]) {
+                    const generatedText = result.candidates[0].content.parts[0].text;
+                    if (textarea) {
+                        textarea.value = generatedText;
+                    }
+                    
+                    // Save last run date to clear banner
+                    localStorage.setItem('RENEW_LAST_FINANCIAL_AUDIT', new Date().toISOString());
+                    localStorage.setItem('RENEW_LAST_FINANCIAL_AUDIT_REPORT', generatedText);
+                    
+                    // Show export actions
+                    const actions = document.getElementById('audit-export-actions');
+                    if (actions) actions.style.display = 'flex';
+                    
+                    alert("✅ AI Financial Audit completed successfully!");
+
+                    // Refresh page views to update current warning alerts and insights
+                    if (typeof navigateTo === 'function') {
+                        const lastView = localStorage.getItem('RENEW_LAST_VIEW') || 'reports';
+                        navigateTo(lastView);
+                    }
+                } else {
+                    console.warn(`[Gemini AI Audit] Model ${model} returned invalid response structure.`);
+                    return window.runAuditWithFallbackChain(models, index + 1);
+                }
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            });
+        })
+        .catch(err => {
+            console.warn(`[Gemini AI Audit] Fetch error for ${model}:`, err);
+            return window.runAuditWithFallbackChain(models, index + 1);
+        });
+    };
+
+    // Try programmatically listing models first
+    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    fetch(listUrl)
+    .then(res => {
+        if (!res.ok) throw new Error("ListModels failed");
+        return res.json();
+    })
+    .then(data => {
+        if (data.models && data.models.length > 0) {
+            const allowed = data.models
+                .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+                .map(m => m.name.replace('models/', ''));
+            
+            if (allowed.length > 0) {
+                const preferred = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+                const sorted = allowed.sort((a, b) => {
+                    const idxA = preferred.indexOf(a);
+                    const idxB = preferred.indexOf(b);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    if (idxA !== -1) return -1;
+                    if (idxB !== -1) return 1;
+                    return 0;
+                });
+                window.runAuditWithFallbackChain(sorted, 0);
+                return;
+            }
+        }
+        throw new Error("No suitable models found");
+    })
+    .catch(err => {
+        window.runAuditWithFallbackChain(modelsToTry, 0);
+    });
+};
+
+window.copyAuditReport = function() {
+    const text = document.getElementById('audit-report-text');
+    if (!text || !text.value) return;
+    
+    navigator.clipboard.writeText(text.value)
+        .then(() => alert("Audit Report copied to clipboard!"))
+        .catch(() => alert("Failed to copy report."));
+};
+
+window.printAuditReport = function() {
+    const text = document.getElementById('audit-report-text');
+    if (!text || !text.value) return;
+    
+    const win = window.open('', '_blank');
+    win.document.write(`
+        <html>
+        <head>
+            <title>R.E.N.E.W - AI Financial Audit Report</title>
+            <style>
+                body { font-family: monospace; white-space: pre-wrap; padding: 30px; font-size: 12px; line-height: 1.5; color: #111; }
+                h2 { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 20px; }
+            </style>
+        </head>
+        <body>
+            <h2>R.E.N.E.W GYM - FORENSIC FINANCIAL AUDIT REPORT</h2>
+            \${text.value}
+            <script>window.onload = function() { window.print(); }</script>
+        </body>
+        </html>
+    `);
+    win.document.close();
 };

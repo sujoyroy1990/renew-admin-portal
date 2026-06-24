@@ -20,14 +20,18 @@ function getUnifiedLoginView() {
     }, 10);
 
     return `
-        <div class="min-h-[85vh] flex flex-col items-center justify-center py-6 px-4 animate-fadeIn neon-font w-full">
+        <!-- Custom Background Image Overlay -->
+        <div id="login-page-bg" class="absolute inset-0 bg-cover bg-center transition-all duration-700 pointer-events-none" style="z-index: 0; opacity: 0;"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" style="z-index: 1;"></div>
+
+        <div class="min-h-[85vh] flex flex-col items-center justify-center md:items-end md:justify-start py-6 px-4 md:pr-20 md:pt-12 animate-fadeIn neon-font w-full relative z-10">
             
             <!-- Bulb/Light Component -->
             <div class="bulb-container">
                 <div class="bulb" id="bulb"></div>
             </div>
 
-            <div class="relative w-full max-w-lg bg-gradient-to-br from-gray-950 via-darkSurface to-black border border-cyan-500/30 p-8 rounded-3xl shadow-[0_0_30px_rgba(0,255,255,0.15)] overflow-hidden group">
+            <div class="relative w-full max-w-lg border border-cyan-500/30 p-8 rounded-3xl shadow-[0_0_30px_rgba(0,255,255,0.15)] overflow-hidden group" style="background: rgba(3, 7, 18, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);">
                 
                 <!-- Scanlines effect -->
                 <div class="scanlines"></div>
@@ -298,6 +302,23 @@ function getUnifiedLoginView() {
                     </button>
                     <p class="text-[9px] text-gray-600 mt-2 font-mono uppercase tracking-widest">Database Sync Placeholder</p>
                 </div>
+
+                <!-- BACKGROUND IMAGE SETTINGS PANEL -->
+                <div class="mt-4 pt-3 border-t border-gray-800/40 relative z-10 flex justify-between items-center text-[10px]">
+                    <span class="text-gray-500 uppercase tracking-wider font-mono">Custom Interface Background:</span>
+                    <div class="flex items-center space-x-3 font-sans">
+                        <label for="bg-upload-input" class="cursor-pointer text-cyan-400 hover:text-white transition-colors flex items-center space-x-1 font-bold uppercase tracking-wider">
+                            <i class="ph ph-image text-xs"></i>
+                            <span>Upload BG</span>
+                        </label>
+                        <input type="file" id="bg-upload-input" class="hidden" accept="image/*" onchange="window.handleBgUpload(event)">
+                        
+                        <button id="bg-reset-btn" onclick="window.resetBgImage()" class="hidden text-red-500 hover:text-white transition-colors font-bold uppercase tracking-wider flex items-center space-x-0.5">
+                            <i class="ph ph-trash text-xs"></i>
+                            <span>Reset</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -425,6 +446,11 @@ window.switchRoleTab = function(role) {
 };
 
 window.updateAuthUI = function() {
+    // Apply background image on load or change
+    if (typeof window.applyLoginBg === 'function') {
+        window.applyLoginBg();
+    }
+
     const idLabel = document.getElementById('login-id-label');
     const idInput = document.getElementById('login-id-input');
 
@@ -1146,4 +1172,54 @@ window.copyRecoveredFighterID = function() {
             alert("Could not copy ID automatically. Please select it manually.");
         });
     }
+};
+
+// BACKGROUND UPLOAD HELPERS
+window.applyLoginBg = function() {
+    const bgContainer = document.getElementById('login-page-bg');
+    const resetBtn = document.getElementById('bg-reset-btn');
+    if (!bgContainer) return;
+
+    const savedBg = localStorage.getItem('RENEW_LOGIN_BG_IMAGE');
+    if (savedBg) {
+        bgContainer.style.backgroundImage = `url('${savedBg}')`;
+        bgContainer.style.opacity = '0.85';
+        if (resetBtn) resetBtn.classList.remove('hidden');
+    } else {
+        // Fallback to the default logo/fighter image
+        bgContainer.style.backgroundImage = "url('login-bg.jpg')";
+        bgContainer.style.opacity = '0.85';
+        if (resetBtn) resetBtn.classList.add('hidden');
+    }
+};
+
+window.handleBgUpload = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check size limit (e.g. 3.5MB to avoid localStorage quota exceeded)
+    if (file.size > 3.5 * 1024 * 1024) {
+        alert("❌ File is too large! Please upload a smaller image (under 3.5MB).");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64Url = e.target.result;
+        try {
+            localStorage.setItem('RENEW_LOGIN_BG_IMAGE', base64Url);
+            window.applyLoginBg();
+        } catch (err) {
+            console.error('Failed to save background image:', err);
+            alert("❌ Storage limit reached. Please try an image with lower resolution or smaller file size.");
+        }
+    };
+    reader.readAsDataURL(file);
+};
+
+window.resetBgImage = function() {
+    localStorage.removeItem('RENEW_LOGIN_BG_IMAGE');
+    window.applyLoginBg();
+    const fileInput = document.getElementById('bg-upload-input');
+    if (fileInput) fileInput.value = '';
 };
