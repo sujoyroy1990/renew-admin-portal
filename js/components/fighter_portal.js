@@ -60,7 +60,13 @@ function getFighterPortalView() {
     const isWaitingApproval = memberTxns.some(t => t.status === 'pending_verification');
     const dueAmount = memberTxns.filter(t => t.status === 'pending').reduce((sum, t) => sum + t.amount, 0);
 
-    if (m.streak === undefined) m.streak = m.lastCheckIn ? 1 : 0;
+    if (m.streak === undefined) {
+        if (m.attendanceStreak) {
+            m.streak = parseInt(m.attendanceStreak) || 0;
+        } else {
+            m.streak = m.lastCheckIn ? 1 : 0;
+        }
+    }
 
     // HOLD STATE: Pending Admin Verification
     if (isWaitingApproval && !hasPendingDue && fighterCurrentTab !== 'billing') {
@@ -765,18 +771,36 @@ function processCheckIn(member) {
     } else { 
         alert(`✅ CHECK-IN SUCCESSFUL!\nWelcome back, ${member.name}.`); 
     }
-    if (!member.checkedInToday) member.streak = (member.streak || 0) + 1;
+    if (!member.checkedInToday) {
+        if (member.streak === undefined) {
+            if (member.attendanceStreak) {
+                member.streak = parseInt(member.attendanceStreak) || 0;
+            } else {
+                member.streak = 0;
+            }
+        }
+        member.streak = member.streak + 1;
+        member.attendanceStreak = `${member.streak} Days`;
+    }
     member.checkedInToday = true;
     member.lastCheckIn = `${todayStr} ${timeStr}`;
 
     const attendanceLog = {
         memberId: member.id,
         memberName: member.name,
-        type: member.checkedInToday ? 'check-in' : 'check-out',
+        type: 'check-in',
         date: todayStr,
         time: timeStr,
-        method: 'Portal Scan'
+        method: 'Portal Scan',
+        logType: 'member'
     };
+
+    if (!window.MEMBER_ATTENDANCE_LOGS) window.MEMBER_ATTENDANCE_LOGS = [];
+    window.MEMBER_ATTENDANCE_LOGS.push(attendanceLog);
+
+    if (window.loggedInFighter && window.loggedInFighter.id === member.id) {
+        window.loggedInFighter = member;
+    }
 
     const persistMember = () => {
         if (window.dbService && window.dbService.setDocument) {
@@ -786,6 +810,7 @@ function processCheckIn(member) {
         }
         try {
             localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(window.MOCK_MEMBERS));
+            localStorage.setItem('RENEW_MEMBER_ATTENDANCE_DB', JSON.stringify(window.MEMBER_ATTENDANCE_LOGS));
         } catch(e) {}
         navigateTo('fighter-portal');
     };

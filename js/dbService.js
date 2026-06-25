@@ -117,7 +117,19 @@
 
 
                 if (admins && admins.length > 0) window.ADMINS_LIST = admins;
-                window.MOCK_MEMBERS           = members || [];
+                window.MOCK_MEMBERS           = (members || []).map(m => {
+                    if (m.streak === undefined) {
+                        if (m.attendanceStreak) {
+                            m.streak = parseInt(m.attendanceStreak) || 0;
+                        } else {
+                            m.streak = m.lastCheckIn ? 1 : 0;
+                        }
+                    }
+                    if (!m.attendanceStreak) {
+                        m.attendanceStreak = `${m.streak || 0} Days`;
+                    }
+                    return m;
+                });
                 window.MOCK_TRAINERS          = trainers || [];
                 window.MOCK_TRANSACTIONS      = transactions || [];
                 window.MOCK_INVENTORY         = inventory || [];
@@ -244,7 +256,23 @@
                 leads: 'MOCK_LEADS'
             };
             if (map[name]) {
-                window[map[name]] = docs;
+                if (name === 'members') {
+                    window[map[name]] = docs.map(m => {
+                        if (m.streak === undefined) {
+                            if (m.attendanceStreak) {
+                                m.streak = parseInt(m.attendanceStreak) || 0;
+                            } else {
+                                m.streak = m.lastCheckIn ? 1 : 0;
+                            }
+                        }
+                        if (!m.attendanceStreak) {
+                            m.attendanceStreak = `${m.streak || 0} Days`;
+                        }
+                        return m;
+                    });
+                } else {
+                    window[map[name]] = docs;
+                }
             }
         }
     };

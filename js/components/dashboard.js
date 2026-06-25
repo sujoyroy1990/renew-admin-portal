@@ -250,6 +250,10 @@ window.submitPublishedEvent = function() {
     };
 
     window.GYM_EVENTS.push(newEvent);
+    if (window.dbService && window.dbService.setDocument) {
+        window.dbService.setDocument('events', newEvent.id, newEvent)
+            .catch(e => console.error('[Firestore] Failed to save event:', e.message));
+    }
     alert(`Success!\nEvent Bulletin "${eventNo}: ${title}" has been authorized and linked to the master ledger code structure.`);
     window.closeDashboardModal();
     renderAdminEventsBoard(); 

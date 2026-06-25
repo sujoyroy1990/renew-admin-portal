@@ -17,279 +17,264 @@ function getUnifiedLoginView() {
     setTimeout(() => {
         // Initialize dynamic visibility states
         window.updateAuthUI();
-    }, 10);
-
-    return `
+    }, 10);    return `
         <!-- Custom Background Image Overlay -->
         <div id="login-page-bg" class="absolute inset-0 bg-cover bg-center transition-all duration-700 pointer-events-none" style="z-index: 0; opacity: 0;"></div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" style="z-index: 1;"></div>
 
-        <div class="min-h-[85vh] flex flex-col items-center justify-center md:items-end md:justify-start py-6 px-4 md:pr-20 md:pt-12 animate-fadeIn neon-font w-full relative z-10">
-            
-            <!-- Bulb/Light Component -->
-            <div class="bulb-container">
-                <div class="bulb" id="bulb"></div>
-            </div>
+        <div class="absolute inset-0 flex flex-col items-center justify-center md:items-end md:justify-center p-4 md:pr-20 animate-fadeIn neon-font z-10 overflow-y-auto">
 
-            <div class="relative w-full max-w-lg border border-cyan-500/30 p-8 rounded-3xl shadow-[0_0_30px_rgba(0,255,255,0.15)] overflow-hidden group" style="background: rgba(3, 7, 18, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);">
-                
-                <!-- Scanlines effect -->
-                <div class="scanlines"></div>
-                
-                <!-- Background decorative glowing circles -->
-                <div class="absolute -top-16 -right-16 w-44 h-44 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all duration-700"></div>
-                <div class="absolute -bottom-20 -left-16 w-48 h-48 bg-brandRed/5 rounded-full blur-3xl group-hover:bg-brandRed/10 transition-all duration-700"></div>
+            <div class="relative w-full max-w-[350px] border border-cyan-500/30 p-4 sm:p-5 rounded-2xl shadow-[0_0_20px_rgba(0,255,255,0.15)] overflow-hidden group" style="background: rgba(3, 7, 18, 0.08); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
 
                 <!-- TITLE & GATEWAY SUBHEADER -->
-                <div class="text-center mb-6 relative z-10">
-                    <div class="w-14 h-14 bg-gradient-to-tr from-brandRed to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/10 shadow-[0_0_20px_rgba(99,102,241,0.25)]">
-                        <i class="ph ph-shield-check text-white text-3xl"></i>
+                <div class="text-center mb-3 relative z-10">
+                    <div class="w-10 h-10 bg-gradient-to-tr from-brandRed to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-2 border border-white/10 shadow-[0_0_12px_rgba(99,102,241,0.25)]">
+                        <i class="ph ph-shield-check text-white text-xl"></i>
                     </div>
-                    <h2 class="text-white font-black text-2xl tracking-widest uppercase neon-glow-text">R.E.N.E.W Portal Gateway</h2>
-                    <p class="text-gray-500 text-xs mt-1 uppercase tracking-widest" id="auth-subtitle">Roster Sign-in System</p>
+                    <h2 class="text-white font-black text-base tracking-wider uppercase neon-glow-text">R.E.N.E.W Portal</h2>
+                    <p class="text-gray-500 text-[9px] mt-0.5 uppercase tracking-widest" id="auth-subtitle">Roster Sign-in System</p>
                 </div>
 
                 <!-- Status Box (Initially hidden) -->
-                <div class="terminal-status-box hidden mb-6 relative z-10" id="statusBox">
+                <div class="terminal-status-box hidden mb-3 relative z-10 !py-2.5 !px-3.5 !min-h-[36px] !text-xs" id="statusBox">
                     <span id="statusText"></span>
                 </div>
 
                 <!-- MODE SELECTOR (LOGIN VS REGISTER TABS) -->
-                <div id="auth-mode-selector-container" class="flex bg-black/40 border border-gray-800/80 p-1 rounded-2xl mb-6 relative z-10">
-                    <button onclick="window.switchAuthMode('login')" id="mode-login-btn" class="flex-1 text-center py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 bg-indigo-600 text-white shadow-md">
-                        Login to Portal
+                <div id="auth-mode-selector-container" class="flex bg-black/40 border border-gray-800/80 p-0.5 rounded-xl mb-3 relative z-10">
+                    <button onclick="window.switchAuthMode('login')" id="mode-login-btn" class="flex-1 text-center py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all duration-300 bg-indigo-600 text-white shadow-md">
+                        Login
                     </button>
-                    <button onclick="window.switchAuthMode('register')" id="mode-register-btn" class="flex-1 text-center py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 text-gray-500 hover:text-white">
-                        Add to Club (Register)
+                    <button onclick="window.switchAuthMode('register')" id="mode-register-btn" class="flex-1 text-center py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all duration-300 text-gray-500 hover:text-white">
+                        Register
                     </button>
                 </div>
 
                 <!-- ROLE SELECTOR TABS -->
-                <div id="auth-role-tabs-container" class="flex justify-center space-x-1.5 bg-black/20 p-1 border border-gray-850/60 rounded-xl mb-6 relative z-10">
-                    <button onclick="window.switchRoleTab('admin')" id="role-admin-btn" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 bg-white/5 border border-white/10 text-white shadow-inner">
-                        <i class="ph ph-user-gear mr-1 text-sm"></i> Admin
+                <div id="auth-role-tabs-container" class="flex justify-center space-x-1 bg-black/20 p-0.5 border border-gray-850/60 rounded-lg mb-3 relative z-10">
+                    <button onclick="window.switchRoleTab('admin')" id="role-admin-btn" class="flex-1 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 bg-white/5 border border-white/10 text-white shadow-inner">
+                        <i class="ph ph-user-gear mr-1 text-xs"></i> Admin
                     </button>
-                    <button onclick="window.switchRoleTab('trainer')" id="role-trainer-btn" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 text-gray-500 hover:text-white">
-                        <i class="ph ph-barbell mr-1 text-sm"></i> Trainer
+                    <button onclick="window.switchRoleTab('trainer')" id="role-trainer-btn" class="flex-1 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 text-gray-500 hover:text-white">
+                        <i class="ph ph-barbell mr-1 text-xs"></i> Trainer
                     </button>
-                    <button onclick="window.switchRoleTab('fighter')" id="role-fighter-btn" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 text-gray-500 hover:text-white">
-                        <i class="ph ph-user-focus mr-1 text-sm"></i> Fighter
+                    <button onclick="window.switchRoleTab('fighter')" id="role-fighter-btn" class="flex-1 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 text-gray-500 hover:text-white">
+                        <i class="ph ph-user-focus mr-1 text-xs"></i> Fighter
                     </button>
                 </div>
 
                 <!-- ==================== LOGIN FORM CONTAINER ==================== -->
-                <div id="login-form-container" class="space-y-4 relative z-10">
-                    <div class="space-y-3.5">
+                <div id="login-form-container" class="space-y-3 relative z-10">
+                    <div class="space-y-2.5">
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider" id="login-id-label">Credential ID</label>
-                            <input type="text" id="login-id-input" placeholder="e.g. admin" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-3 text-white text-xs mt-1 focus:outline-none transition-colors font-mono">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider" id="login-id-label">Credential ID</label>
+                            <input type="text" id="login-id-input" placeholder="e.g. admin" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors font-mono">
                             <div class="underline-green"></div>
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Access PIN / Password</label>
-                            <input type="password" id="login-password-input" placeholder="••••••" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-3 text-white text-xs mt-1 focus:outline-none transition-colors font-mono">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Access PIN / Password</label>
+                            <input type="password" id="login-password-input" placeholder="••••••" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors font-mono">
                             <div class="underline-cyan"></div>
-                            <p class="text-[9px] text-gray-600 mt-2 italic font-medium" id="login-desc-text">* PIN required for Admin. Trainers/Fighters use password.</p>
-                            <div class="flex justify-between items-center text-[10px] mt-2 px-1">
+                            <p class="text-[8px] text-gray-600 mt-1 italic font-medium" id="login-desc-text">* PIN required for Admin. Trainers/Fighters use password.</p>
+                            <div class="flex justify-between items-center text-[9px] mt-1.5 px-1">
                                 <span class="text-gray-500 italic">Secure session auth</span>
                                 <a href="javascript:void(0)" onclick="window.triggerAuthRecovery()" id="auth-recovery-link" class="text-indigo-400 hover:text-indigo-300 font-bold hover:underline transition-colors">Forgot Password?</a>
                             </div>
                         </div>
                     </div>
 
-                    <button onclick="window.submitAuthLogin()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-3.5 rounded-xl uppercase tracking-widest text-xs shadow-lg hover:shadow-indigo-500/10 transition-all mt-6 flex justify-center items-center gap-1.5">
-                        <i class="ph ph-sign-in text-base"></i> Authenticate Credentials
+                    <button onclick="window.submitAuthLogin()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-2.5 rounded-lg uppercase tracking-widest text-[10px] shadow-lg hover:shadow-indigo-500/10 transition-all mt-4 flex justify-center items-center gap-1">
+                        <i class="ph ph-sign-in text-sm"></i> Authenticate Credentials
                     </button>
                 </div>
 
                 <!-- ==================== RECOVERY FORM CONTAINER ==================== -->
-                <div id="recovery-form-container" class="space-y-4 hidden relative z-10 animate-fadeIn">
-                    <div class="text-center mb-4">
-                        <h3 class="text-white font-extrabold text-lg uppercase tracking-wider neon-glow-text" id="recovery-title">Account Recovery</h3>
-                        <p class="text-gray-500 text-[10px] uppercase tracking-wider mt-0.5" id="recovery-subtitle">Restore access using registered phone number</p>
+                <div id="recovery-form-container" class="space-y-3 hidden relative z-10 animate-fadeIn">
+                    <div class="text-center mb-2">
+                        <h3 class="text-white font-extrabold text-sm uppercase tracking-wider neon-glow-text" id="recovery-title">Account Recovery</h3>
+                        <p class="text-gray-500 text-[8px] uppercase tracking-wider mt-0.5" id="recovery-subtitle">Restore access using registered phone number</p>
                     </div>
 
-                    <div class="space-y-3.5" id="recovery-step-1">
+                    <div class="space-y-2.5" id="recovery-step-1">
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider" id="recovery-phone-label">Registered Phone Number</label>
-                            <input type="text" id="recovery-phone-input" placeholder="e.g. 9876543210" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-3 text-white text-xs mt-1 focus:outline-none transition-colors font-mono">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider" id="recovery-phone-label">Registered Phone Number</label>
+                            <input type="text" id="recovery-phone-input" placeholder="e.g. 9876543210" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors font-mono">
                             <div class="underline-green"></div>
                         </div>
-                        <button onclick="window.submitRecoveryPhone()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-3 rounded-xl uppercase tracking-widest text-xs shadow-lg hover:shadow-indigo-500/10 transition-all mt-4">
+                        <button onclick="window.submitRecoveryPhone()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-2 rounded-lg uppercase tracking-widest text-[10px] shadow-lg hover:shadow-indigo-500/10 transition-all mt-3">
                             Verify Phone Number
                         </button>
                     </div>
 
                     <!-- Step 2 (Simulated OTP verification for Admin/Trainer password recovery) -->
-                    <div class="space-y-3.5 hidden" id="recovery-step-2">
-                        <div class="p-3 bg-indigo-950/40 border border-indigo-900/60 rounded-xl">
-                            <p class="text-[10px] text-indigo-300 font-medium leading-relaxed">
+                    <div class="space-y-2.5 hidden" id="recovery-step-2">
+                        <div class="p-2 bg-indigo-950/40 border border-indigo-900/60 rounded-lg">
+                            <p class="text-[9px] text-indigo-300 font-medium leading-relaxed">
                                 <i class="ph ph-info mr-1"></i> SIMULATION NOTE: An OTP code has been simulated for your registered number. Use code <span class="font-bold text-white tracking-widest bg-indigo-900/80 px-2 py-0.5 rounded font-mono">123456</span> to authorize password reset.
                             </p>
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Simulated 6-Digit OTP</label>
-                            <input type="text" id="recovery-otp-input" placeholder="Enter 123456" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-3 text-white text-xs mt-1 focus:outline-none transition-colors font-mono text-center tracking-widest text-lg font-bold">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Simulated 6-Digit OTP</label>
+                            <input type="text" id="recovery-otp-input" placeholder="Enter 123456" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors font-mono text-center tracking-widest text-base font-bold">
                             <div class="underline-cyan"></div>
                         </div>
-                        <button onclick="window.submitRecoveryOTP()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-3 rounded-xl uppercase tracking-widest text-xs shadow-lg hover:shadow-indigo-500/10 transition-all mt-2">
+                        <button onclick="window.submitRecoveryOTP()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-2 rounded-lg uppercase tracking-widest text-[10px] shadow-lg hover:shadow-indigo-500/10 transition-all mt-2">
                             Verify OTP Code
                         </button>
                     </div>
 
                     <!-- Step 3 (Password Reset Form for Admin/Trainer) -->
-                    <div class="space-y-3.5 hidden" id="recovery-step-3">
+                    <div class="space-y-2.5 hidden" id="recovery-step-3">
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Choose New Password</label>
-                            <input type="password" id="recovery-new-pass" placeholder="••••••" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-3 text-white text-xs mt-1 focus:outline-none transition-colors font-mono">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Choose New Password</label>
+                            <input type="password" id="recovery-new-pass" placeholder="••••••" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors font-mono">
                             <div class="underline-green"></div>
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Confirm New Password</label>
-                            <input type="password" id="recovery-confirm-pass" placeholder="••••••" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-3 text-white text-xs mt-1 focus:outline-none transition-colors font-mono">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Confirm New Password</label>
+                            <input type="password" id="recovery-confirm-pass" placeholder="••••••" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors font-mono">
                             <div class="underline-cyan"></div>
                         </div>
-                        <button onclick="window.submitRecoveryNewPassword()" class="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-extrabold py-3 rounded-xl uppercase tracking-widest text-xs shadow-lg hover:shadow-green-500/10 transition-all mt-2">
+                        <button onclick="window.submitRecoveryNewPassword()" class="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-extrabold py-2 rounded-lg uppercase tracking-widest text-[10px] shadow-lg hover:shadow-green-500/10 transition-all mt-2">
                             Update Account Password
                         </button>
                     </div>
 
                     <!-- Result screen for Fighter ID Recovery -->
-                    <div class="space-y-3.5 hidden text-center" id="recovery-result-fighter">
-                        <div class="p-4 bg-green-950/40 border border-green-900/60 rounded-2xl inline-block w-full text-left space-y-2">
-                            <div class="flex items-center gap-2 text-green-400 font-bold text-xs uppercase tracking-wider">
-                                <i class="ph ph-check-circle text-lg"></i> Fighter Profile Found
+                    <div class="space-y-2.5 hidden text-center" id="recovery-result-fighter">
+                        <div class="p-3 bg-green-950/40 border border-green-900/60 rounded-xl inline-block w-full text-left space-y-1.5">
+                            <div class="flex items-center gap-1.5 text-green-400 font-bold text-[10px] uppercase tracking-wider">
+                                <i class="ph ph-check-circle text-base"></i> Fighter Profile Found
                             </div>
-                            <div class="border-t border-green-900/40 pt-2">
-                                <p class="text-[10px] text-gray-400 uppercase font-semibold">Fighter ID (Use for Login)</p>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span id="recovered-fighter-id" class="text-white font-black text-xl tracking-wider font-mono">m-001</span>
-                                    <button onclick="window.copyRecoveredFighterID()" class="p-1.5 bg-black/40 hover:bg-black/60 rounded border border-gray-850 text-indigo-400 hover:text-white transition-colors" title="Copy to clipboard">
-                                        <i class="ph ph-copy text-sm"></i>
+                            <div class="border-t border-green-900/40 pt-1.5">
+                                <p class="text-[9px] text-gray-400 uppercase font-semibold">Fighter ID (Use for Login)</p>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span id="recovered-fighter-id" class="text-white font-black text-lg tracking-wider font-mono">m-001</span>
+                                    <button onclick="window.copyRecoveredFighterID()" class="p-1 bg-black/40 hover:bg-black/60 rounded border border-gray-850 text-indigo-400 hover:text-white transition-colors" title="Copy to clipboard">
+                                        <i class="ph ph-copy text-xs"></i>
                                     </button>
                                 </div>
                             </div>
-                            <div class="pt-1 text-[11px] text-gray-300 font-mono">
+                            <div class="pt-0.5 text-[10px] text-gray-300 font-mono">
                                 <p>Name: <span id="recovered-fighter-name" class="font-semibold text-white">Subham Das</span></p>
                                 <p>Plan: <span id="recovered-fighter-plan" class="font-semibold text-white">Monthly Regular Track</span></p>
                             </div>
                         </div>
-                        <button onclick="window.closeAuthRecovery()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-3 rounded-xl uppercase tracking-widest text-xs shadow-lg hover:shadow-indigo-500/10 transition-all mt-4">
+                        <button onclick="window.closeAuthRecovery()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-2 rounded-lg uppercase tracking-widest text-[10px] shadow-lg hover:shadow-indigo-500/10 transition-all mt-3">
                             Proceed to Login
                         </button>
                     </div>
 
-                    <button onclick="window.closeAuthRecovery()" class="w-full mt-2 bg-transparent text-gray-500 hover:text-white text-[11px] uppercase tracking-wider font-black py-2.5 transition-colors">
+                    <button onclick="window.closeAuthRecovery()" class="w-full mt-1.5 bg-transparent text-gray-500 hover:text-white text-[10px] uppercase tracking-wider font-black py-2 transition-colors">
                         ← Back to Sign-in
                     </button>
                 </div>
 
                 <!-- ==================== REGISTRATION FORM CONTAINER ==================== -->
-                <div id="register-form-container" class="space-y-4 hidden relative z-10">
+                <div id="register-form-container" class="space-y-3 hidden relative z-10">
                     
                     <!-- ADMIN REGISTER FIELDS -->
-                    <div id="reg-fields-admin" class="space-y-3">
+                    <div id="reg-fields-admin" class="space-y-2">
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Admin Full Name</label>
-                            <input type="text" id="reg-admin-name" placeholder="Super Administrator" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none transition-colors">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Admin Full Name</label>
+                            <input type="text" id="reg-admin-name" placeholder="Super Administrator" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors">
                             <div class="underline-green"></div>
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Admin Phone (Unique ID)</label>
-                            <input type="text" id="reg-admin-phone" placeholder="e.g. 9999999999" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none transition-colors font-mono">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Admin Phone (Unique ID)</label>
+                            <input type="text" id="reg-admin-phone" placeholder="e.g. 9999999999" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors font-mono">
                             <div class="underline-cyan"></div>
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Admin Email</label>
-                            <input type="email" id="reg-admin-email" placeholder="admin@renew.com" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none transition-colors">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Admin Email</label>
+                            <input type="email" id="reg-admin-email" placeholder="admin@renew.com" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors">
                             <div class="underline-green"></div>
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Admin Password</label>
-                            <input type="password" id="reg-admin-pass" placeholder="••••••" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none transition-colors font-mono">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Admin Password</label>
+                            <input type="password" id="reg-admin-pass" placeholder="••••••" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors font-mono">
                             <div class="underline-cyan"></div>
                         </div>
                     </div>
 
                     <!-- TRAINER REGISTER FIELDS -->
-                    <div id="reg-fields-trainer" class="space-y-3 hidden">
+                    <div id="reg-fields-trainer" class="space-y-2 hidden">
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Trainer Full Name</label>
-                            <input type="text" id="reg-trainer-name" placeholder="Rajat Sharma" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none transition-colors">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Trainer Full Name</label>
+                            <input type="text" id="reg-trainer-name" placeholder="Rajat Sharma" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors">
                             <div class="underline-green"></div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
-                                <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Desired Trainer ID</label>
-                                <input type="text" id="reg-trainer-id" placeholder="e.g. t3" readonly class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none font-mono cursor-not-allowed opacity-70">
+                                <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Desired Trainer ID</label>
+                                <input type="text" id="reg-trainer-id" placeholder="e.g. t3" readonly class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none font-mono cursor-not-allowed opacity-70">
                                 <div class="underline-green"></div>
                             </div>
                             <div>
-                                <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">WhatsApp Phone (Unique ID)</label>
-                                <input type="text" id="reg-trainer-phone" placeholder="9876543212" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none font-mono">
+                                <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">WhatsApp Phone (Unique ID)</label>
+                                <input type="text" id="reg-trainer-phone" placeholder="9876543212" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none font-mono">
                                 <div class="underline-cyan"></div>
                             </div>
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Specialty / Expertise</label>
-                            <input type="text" id="reg-trainer-spec" placeholder="e.g. MMA Striking & Conditioning" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none transition-colors">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Specialty / Expertise</label>
+                            <input type="text" id="reg-trainer-spec" placeholder="e.g. MMA Striking & Conditioning" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors">
                             <div class="underline-green"></div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
-                                <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Trainer Email</label>
-                                <input type="email" id="reg-trainer-email" placeholder="trainer@renew.com" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none transition-colors">
+                                <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Trainer Email</label>
+                                <input type="email" id="reg-trainer-email" placeholder="trainer@renew.com" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors">
                                 <div class="underline-green"></div>
                             </div>
                             <div>
-                                <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Password</label>
-                                <input type="password" id="reg-trainer-pass" placeholder="••••••" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none font-mono">
+                                <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Password</label>
+                                <input type="password" id="reg-trainer-pass" placeholder="••••••" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none font-mono">
                                 <div class="underline-cyan"></div>
                             </div>
                         </div>
                     </div>
 
                     <!-- FIGHTER REGISTER FIELDS -->
-                    <div id="reg-fields-fighter" class="space-y-3 hidden">
+                    <div id="reg-fields-fighter" class="space-y-2 hidden">
                         <div>
-                            <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Fighter Full Name</label>
-                            <input type="text" id="reg-fighter-name" placeholder="Subham Das" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none transition-colors">
+                            <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Fighter Full Name</label>
+                            <input type="text" id="reg-fighter-name" placeholder="Subham Das" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none transition-colors">
                             <div class="underline-green"></div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
-                                <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Desired Fighter ID</label>
-                                <input type="text" id="reg-fighter-id" placeholder="e.g. m-006" readonly class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none font-mono cursor-not-allowed opacity-70">
+                                <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Desired Fighter ID</label>
+                                <input type="text" id="reg-fighter-id" placeholder="e.g. m-006" readonly class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none font-mono cursor-not-allowed opacity-70">
                                 <div class="underline-green"></div>
                             </div>
                             <div>
-                                <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">WhatsApp Phone (Unique ID)</label>
-                                <input type="text" id="reg-fighter-phone" placeholder="98300XXXXX" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none font-mono">
+                                <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">WhatsApp Phone (Unique ID)</label>
+                                <input type="text" id="reg-fighter-phone" placeholder="98300XXXXX" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="w-full bg-black/50 border-0 rounded-t-lg px-3 py-2 text-white text-xs mt-0.5 focus:outline-none font-mono">
                                 <div class="underline-cyan"></div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
-                                <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Date of Birth</label>
-                                <input type="date" id="reg-fighter-dob" class="w-full bg-black/50 border border-gray-800 rounded-xl px-4 py-2 text-white text-xs mt-1 focus:outline-none focus:border-indigo-500 transition-colors">
+                                <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Date of Birth</label>
+                                <input type="date" id="reg-fighter-dob" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-1.5 text-white text-xs mt-0.5 focus:outline-none focus:border-indigo-500 transition-colors">
                             </div>
                             <div>
-                                <label class="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Membership Plan</label>
-                                <select id="reg-fighter-plan" class="w-full bg-black/50 border border-gray-800 rounded-xl px-4 py-2 text-white text-xs mt-1 focus:outline-none focus:border-indigo-500 transition-colors font-mono">
+                                <label class="text-[9px] text-gray-500 font-extrabold uppercase tracking-wider">Membership Plan</label>
+                                <select id="reg-fighter-plan" class="w-full bg-black/50 border border-gray-800 rounded-lg px-3 py-1.5 text-white text-xs mt-0.5 focus:outline-none focus:border-indigo-500 transition-colors font-mono">
                                     ${planOptions}
                                 </select>
                             </div>
                         </div>
                     </div>
 
-                    <button onclick="window.submitAuthRegister()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-3.5 rounded-xl uppercase tracking-widest text-xs shadow-lg hover:shadow-indigo-500/10 transition-all mt-6 flex justify-center items-center gap-1.5">
+                    <button onclick="window.submitAuthRegister()" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold py-2.5 rounded-lg uppercase tracking-widest text-[10px] shadow-lg hover:shadow-indigo-500/10 transition-all mt-4 flex justify-center items-center gap-1">
                         <i class="ph ph-plus-circle text-base animate-pulse"></i> Submit & Register Profile
                     </button>
                 </div>
 
                 <!-- GOOGLE OAUTH FUTURISTIC BTN -->
-                <div class="mt-6 pt-5 border-t border-gray-800/80 relative z-10 flex flex-col items-center">
-                    <button onclick="window.initGoogleAuthDemo()" class="w-full bg-black/30 border border-gray-850 hover:border-gray-700 text-gray-400 hover:text-white py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2.5 text-xs font-semibold group/google">
+                <div class="mt-4 pt-4 border-t border-gray-800/80 relative z-10 flex flex-col items-center">
+                    <button onclick="window.initGoogleAuthDemo()" class="w-full bg-black/30 border border-gray-850 hover:border-gray-700 text-gray-400 hover:text-white py-2 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-[10px] font-semibold group/google">
                         <svg class="w-4 h-4 group-hover/google:scale-110 transition-transform" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
                             <g transform="matrix(1, 0, 0, 1, 0, 0)">
                                 <path d="M21.35,11.1H12v2.7h5.38c-0.24,1.28 -0.96,2.37 -2.05,3.1l3.2,2.48c1.87,-1.72 2.95,-4.26 2.95,-7.23C21.48,11.75 21.43,11.41 21.35,11.1z" fill="#4285F4"/>
@@ -300,14 +285,14 @@ function getUnifiedLoginView() {
                         </svg>
                         <span>Continue with Google</span>
                     </button>
-                    <p class="text-[9px] text-gray-600 mt-2 font-mono uppercase tracking-widest">Database Sync Placeholder</p>
+                    <p class="text-[8px] text-gray-600 mt-1.5 font-mono uppercase tracking-widest">Database Sync Placeholder</p>
                 </div>
 
                 <!-- BACKGROUND IMAGE SETTINGS PANEL -->
-                <div class="mt-4 pt-3 border-t border-gray-800/40 relative z-10 flex justify-between items-center text-[10px]">
-                    <span class="text-gray-500 uppercase tracking-wider font-mono">Custom Interface Background:</span>
-                    <div class="flex items-center space-x-3 font-sans">
-                        <label for="bg-upload-input" class="cursor-pointer text-cyan-400 hover:text-white transition-colors flex items-center space-x-1 font-bold uppercase tracking-wider">
+                <div class="mt-3 pt-2.5 border-t border-gray-800/40 relative z-10 flex justify-between items-center text-[9px]">
+                    <span class="text-gray-500 uppercase tracking-wider font-mono">Custom Interface BG:</span>
+                    <div class="flex items-center space-x-2 font-sans">
+                        <label for="bg-upload-input" class="cursor-pointer text-cyan-400 hover:text-white transition-colors flex items-center space-x-0.5 font-bold uppercase tracking-wider">
                             <i class="ph ph-image text-xs"></i>
                             <span>Upload BG</span>
                         </label>
@@ -387,14 +372,14 @@ window.switchAuthMode = function(mode) {
     const subtitle = document.getElementById('auth-subtitle');
 
     if (mode === 'login') {
-        if (loginBtn) loginBtn.className = "flex-1 text-center py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 bg-indigo-600 text-white shadow-md";
-        if (registerBtn) registerBtn.className = "flex-1 text-center py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 text-gray-500 hover:text-white";
+        if (loginBtn) loginBtn.className = "flex-1 text-center py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all duration-300 bg-indigo-600 text-white shadow-md";
+        if (registerBtn) registerBtn.className = "flex-1 text-center py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all duration-300 text-gray-500 hover:text-white";
         if (loginForm) loginForm.classList.remove('hidden');
         if (registerForm) registerForm.classList.add('hidden');
         if (subtitle) subtitle.textContent = "Roster Sign-in System";
     } else {
-        if (loginBtn) loginBtn.className = "flex-1 text-center py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 text-gray-500 hover:text-white";
-        if (registerBtn) registerBtn.className = "flex-1 text-center py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 bg-indigo-600 text-white shadow-md";
+        if (loginBtn) loginBtn.className = "flex-1 text-center py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all duration-300 text-gray-500 hover:text-white";
+        if (registerBtn) registerBtn.className = "flex-1 text-center py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all duration-300 bg-indigo-600 text-white shadow-md";
         if (loginForm) loginForm.classList.add('hidden');
         if (registerForm) registerForm.classList.remove('hidden');
         if (subtitle) subtitle.textContent = "Membership Registration Roster";
@@ -435,9 +420,9 @@ window.switchRoleTab = function(role) {
     tabs.forEach(t => {
         if (t.element) {
             if (t.key === role) {
-                t.element.className = "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all duration-250 bg-white/5 border border-white/10 text-white shadow-inner";
+                t.element.className = "flex-1 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all duration-250 bg-white/5 border border-white/10 text-white shadow-inner";
             } else {
-                t.element.className = "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all duration-250 text-gray-500 hover:text-white";
+                t.element.className = "flex-1 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all duration-250 text-gray-500 hover:text-white";
             }
         }
     });
@@ -931,9 +916,147 @@ window.submitAuthRegister = async function() {
     }
 };
 
-// DEMO GOOGLE AUTH MESSAGE
-window.initGoogleAuthDemo = function() {
-    alert("🤖 Google Sign-in Triggered (Simulation):\n\n\"Sign in with Google\" will be fully operational in a future release once backend servers and Google Firebase Auth / Google Identity services are integrated.");
+// REAL GOOGLE AUTH PROCESS VIA FIREBASE
+window.initGoogleAuthDemo = async function() {
+    const bulb = document.getElementById('bulb');
+    if (bulb) bulb.className = 'bulb';
+
+    if (!window.firebase) {
+        if (bulb) bulb.classList.add('denied');
+        typeTerminalText("ERROR: FIREBASE IS NOT INITIALIZED.", true);
+        return;
+    }
+
+    try {
+        typeTerminalText("INITIALIZING GOOGLE SECURE LINK...", false);
+        const provider = new window.firebase.auth.GoogleAuthProvider();
+        
+        provider.setCustomParameters({
+            prompt: 'select_account'
+        });
+
+        typeTerminalText("AWAITING USER AUTHORIZATION PORTAL...", false);
+        const result = await window.firebase.auth().signInWithPopup(provider);
+        const googleUser = result.user;
+
+        if (!googleUser || !googleUser.email) {
+            throw new Error("Unable to retrieve user credentials from Google.");
+        }
+
+        const email = googleUser.email.toLowerCase();
+        const displayName = googleUser.displayName || '';
+        const phone = googleUser.phoneNumber ? cleanPhone(googleUser.phoneNumber) : '';
+        const normName = displayName.toLowerCase().replace(/\s+/g, '');
+
+        typeTerminalText("VERIFYING SECURITY CREDENTIALS...", false);
+        const authData = await refreshAuthCache();
+
+        let matchedUser = null;
+
+        if (activeRoleTab === 'admin') {
+            const admins = authData.admins || [];
+            matchedUser = admins.find(a => 
+                (a.email && a.email.toLowerCase() === email) ||
+                (a.phone && phone && phoneMatch(a.phone, phone))
+            );
+
+            if (!matchedUser) {
+                if (bulb) bulb.classList.add('denied');
+                typeTerminalText(`ACCESS DENIED: ADMIN EMAIL (${email.toUpperCase()}) NOT REGISTERED.`, true);
+                return;
+            }
+
+            if (bulb) bulb.classList.add('granted');
+            typeTerminalText(`ACCESS GRANTED: ADMIN SESSION OPENED FOR ${displayName.toUpperCase()}...`, false, () => {
+                setTimeout(() => {
+                    localStorage.setItem('RENEW_LOGGED_IN_ROLE', 'admin');
+                    localStorage.setItem('RENEW_LOGGED_IN_USER_ID', matchedUser.id || matchedUser.phone);
+                    window.loggedInRole = 'admin';
+                    window.checkAuthAndNavigate();
+                }, 1000);
+            });
+
+        } else if (activeRoleTab === 'trainer') {
+            const trainers = authData.trainers || [];
+            matchedUser = trainers.find(t => 
+                (t.email && t.email.toLowerCase() === email) ||
+                (t.phone && phone && phoneMatch(t.phone, phone))
+            );
+
+            if (!matchedUser) {
+                if (bulb) bulb.classList.add('denied');
+                typeTerminalText(`ACCESS DENIED: COACH EMAIL (${email.toUpperCase()}) NOT REGISTERED.`, true);
+                return;
+            }
+
+            if (matchedUser.status === 'pending') {
+                if (bulb) bulb.classList.add('denied');
+                typeTerminalText("ACCESS DEFERRED: APPROVAL STATUS IS PENDING.", true);
+                return;
+            }
+
+            if (matchedUser.status === 'blocked' || matchedUser.status === 'suspended' || matchedUser.status === 'inactive') {
+                if (bulb) bulb.classList.add('denied');
+                typeTerminalText(`ACCESS DENIED: ACCOUNT STATUS IS ${matchedUser.status.toUpperCase()}.`, true);
+                return;
+            }
+
+            if (bulb) bulb.classList.add('granted');
+            typeTerminalText(`ACCESS GRANTED. WELCOME COACH ${matchedUser.name.toUpperCase()}...`, false, () => {
+                setTimeout(() => {
+                    localStorage.setItem('RENEW_LOGGED_IN_ROLE', 'trainer');
+                    localStorage.setItem('RENEW_LOGGED_IN_USER_ID', matchedUser.id);
+                    window.loggedInRole = 'trainer';
+                    window.loggedInTrainer = matchedUser;
+                    window.checkAuthAndNavigate();
+                }, 1000);
+            });
+
+        } else if (activeRoleTab === 'fighter') {
+            const members = authData.members || [];
+            matchedUser = members.find(m => 
+                (m.email && m.email.toLowerCase() === email) ||
+                (m.phone && phone && phoneMatch(m.phone, phone)) ||
+                (m.name && m.name.toLowerCase().replace(/\s+/g, '') === normName)
+            );
+
+            if (!matchedUser) {
+                if (bulb) bulb.classList.add('denied');
+                typeTerminalText(`ACCESS DENIED: FIGHTER PROFILE FOR ${displayName.toUpperCase()} NOT REGISTERED.`, true);
+                return;
+            }
+
+            if (!matchedUser.email) {
+                matchedUser.email = email;
+                try {
+                    if (window.dbService && typeof window.dbService.setDocument === 'function') {
+                        await window.dbService.setDocument('members', matchedUser.id, matchedUser);
+                    }
+                } catch (e) {
+                    console.warn("Failed to update fighter email in Firestore:", e);
+                }
+                try {
+                    localStorage.setItem('MOCK_MEMBERS_DB', JSON.stringify(members));
+                } catch(e) {}
+            }
+
+            if (bulb) bulb.classList.add('granted');
+            typeTerminalText(`ACCESS GRANTED. LOADING ARENA STATS FOR ${matchedUser.name.toUpperCase()}...`, false, () => {
+                setTimeout(() => {
+                    localStorage.setItem('RENEW_LOGGED_IN_ROLE', 'fighter');
+                    localStorage.setItem('RENEW_LOGGED_IN_USER_ID', matchedUser.id);
+                    window.loggedInRole = 'fighter';
+                    window.loggedInFighter = matchedUser;
+                    window.checkAuthAndNavigate();
+                }, 1000);
+            });
+        }
+
+    } catch (error) {
+        if (bulb) bulb.classList.add('denied');
+        typeTerminalText(`GOOGLE AUTH FAULT: ${error.message.toUpperCase()}`, true);
+        console.error("Google Auth Exception:", error);
+    }
 };
 
 // ACCOUNT RECOVERY CONTROLLER & STATE

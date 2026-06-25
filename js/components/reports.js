@@ -119,32 +119,36 @@ function render10VisualGraphs() {
     const trainers = window.MOCK_TRAINERS || [];
     const attLogs = window.MEMBER_ATTENDANCE_LOGS || [];
 
-    // 1. Revenue Growth (Bar Chart - last 6 months)
-    const getMonthRev = (monthPattern, defaultVal) => {
-        const matching = txns.filter(t => t.type === 'income' && t.status === 'paid' && t.date.includes(monthPattern));
-        if (matching.length > 0) {
-            return matching.reduce((sum, t) => sum + t.amount, 0);
-        }
-        return defaultVal;
-    };
-    const revs = [
-        getMonthRev('-01-', 18000),
-        getMonthRev('-02-', 22000),
-        getMonthRev('-03-', 20000),
-        getMonthRev('-04-', 28000),
-        getMonthRev('-05-', 25000),
-        getMonthRev('-06-', 35000) // June is live
-    ];
+    // 1. Revenue Growth (Bar Chart - last 6 months dynamically synced)
+    const revs = [];
+    const revLabels = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        const yearMonth = d.toISOString().slice(0, 7); // e.g. "2026-06"
+        const monthName = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+        revLabels.push(monthName);
+        
+        const sum = txns
+            .filter(t => t.type === 'income' && t.status === 'paid' && t.date.startsWith(yearMonth))
+            .reduce((total, t) => total + t.amount, 0);
+        revs.push(sum);
+    }
     const maxRev = Math.max(...revs, 1);
     const g1Bars = revs.map((rev, i) => {
         const heightPct = Math.round((rev / maxRev) * 100);
-        const isJun = i === 5;
-        const barColorClass = isJun ? 'bg-brandRed shadow-[0_0_10px_rgba(255,0,51,0.5)] animate-pulse' : 'bg-green-500';
+        const isCurrentMonth = i === 5;
+        const barColorClass = isCurrentMonth ? 'bg-brandRed shadow-[0_0_10px_rgba(255,0,51,0.5)] animate-pulse' : 'bg-green-500';
         return `
             <div class="w-full bg-green-500/20 rounded-t-sm relative group" title="₹${rev.toLocaleString()}">
                 <div class="absolute bottom-0 w-full ${barColorClass} rounded-t-sm transition-all duration-500" style="height: ${heightPct}%"></div>
             </div>
         `;
+    }).join('');
+
+    const g1LabelsHTML = revLabels.map((lbl, i) => {
+        const isCurrent = i === 5;
+        return `<span class="${isCurrent ? 'text-white font-bold' : ''}">${lbl}</span>`;
     }).join('');
 
     const g1 = `
@@ -153,7 +157,9 @@ function render10VisualGraphs() {
             <div class="flex items-end justify-between flex-1 gap-1">
                 ${g1Bars}
             </div>
-            <div class="flex justify-between text-[8px] text-gray-600 font-mono mt-2 pt-1 border-t border-gray-800"><span>JAN</span><span>FEB</span><span>MAR</span><span>APR</span><span>MAY</span><span class="text-white font-bold">JUN</span></div>
+            <div class="flex justify-between text-[8px] text-gray-600 font-mono mt-2 pt-1 border-t border-gray-800">
+                ${g1LabelsHTML}
+            </div>
         </div>
     `;
 
@@ -184,9 +190,11 @@ function render10VisualGraphs() {
     `;
 
     // 3. Admission vs Churn (Comparison Stack)
-    const newAdmissions = members.filter(m => m.registrationDate && new Date(m.registrationDate) >= new Date('2026-05-20')).length;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const newAdmissions = members.filter(m => m.registrationDate && new Date(m.registrationDate) >= thirtyDaysAgo).length;
     const dropouts = members.filter(m => ['at_risk', 'expired'].includes(m.status)).length;
-    const maxAcq = Math.max(newAdmissions, dropouts, 5);
+    const maxAcq = Math.max(newAdmissions, dropouts, 1);
     const acqPct = Math.round((newAdmissions / maxAcq) * 100);
     const churnPct = Math.round((dropouts / maxAcq) * 100);
 
@@ -450,8 +458,7 @@ function render10VisualGraphs() {
         const c = attLogs.filter(l => l.type === 'check-in' && l.date === dateStr).length;
         pulseCounts.push(c);
     }
-    const baselinePulse = [3, 5, 4, 6, 5, 2, 1];
-    const finalPulse = pulseCounts.map((c, i) => c + baselinePulse[i]);
+    const finalPulse = pulseCounts;
     const maxPulse = Math.max(...finalPulse, 1);
     
     const g10Bars = finalPulse.map((c, i) => {

@@ -160,6 +160,16 @@ if (window.MOCK_MEMBERS) {
                 method: l.method
             }));
         }
+        if (m.streak === undefined) {
+            if (m.attendanceStreak) {
+                m.streak = parseInt(m.attendanceStreak) || 0;
+            } else {
+                m.streak = m.lastCheckIn ? 1 : 0;
+            }
+        }
+        if (!m.attendanceStreak) {
+            m.attendanceStreak = `${m.streak || 0} Days`;
+        }
     });
 }
 

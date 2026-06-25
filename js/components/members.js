@@ -174,7 +174,8 @@ window.simulateMemberScan = function(memberId) {
             type: "check-out",
             date: todayStr,
             time: timeStr,
-            method: "Desk Scan"
+            method: "Desk Scan",
+            logType: "member"
         });
 
         alert(`🛑 Scan Out Successful for ${member.name} at ${timeStr}`);
@@ -183,6 +184,16 @@ window.simulateMemberScan = function(memberId) {
         member.checkedInToday = true;
         member.lastCheckIn = `${todayStr} ${timeStr}`;
         member.lastCheckOut = null; // Clear checkout time
+
+        if (member.streak === undefined) {
+            if (member.attendanceStreak) {
+                member.streak = parseInt(member.attendanceStreak) || 0;
+            } else {
+                member.streak = 0;
+            }
+        }
+        member.streak += 1;
+        member.attendanceStreak = `${member.streak} Days`;
 
         if (member.expiryDate === "Pending First Scan" || member.status === 'inactive') {
             const expiry = new Date();
@@ -204,8 +215,13 @@ window.simulateMemberScan = function(memberId) {
             type: "check-in",
             date: todayStr,
             time: timeStr,
-            method: "Desk Scan"
+            method: "Desk Scan",
+            logType: "member"
         });
+    }
+
+    if (window.loggedInFighter && window.loggedInFighter.id === member.id) {
+        window.loggedInFighter = member;
     }
 
     // Save to localStorage + Firestore
