@@ -31,7 +31,7 @@
     }
 
     #sidebar-overlay {
-        display: block !important;
+        display: none;
     }
 
     #sidebar-overlay.active {

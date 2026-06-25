@@ -169,7 +169,32 @@ function navigateTo(viewId) {
     }
 }
 
-// ডিফল্টভাবে লগইন এবং অথ চেক রান করা
 document.addEventListener('DOMContentLoaded', () => { 
     window.checkAuthAndNavigate(); 
+
+    // Mobile Sidebar Toggle Handler
+    const menuToggle = document.getElementById('menu-toggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+    if (menuToggle && sidebar && sidebarOverlay) {
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+            sidebarOverlay.classList.toggle('active');
+        });
+
+        sidebarOverlay.addEventListener('click', () => {
+            sidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+        });
+
+        // Close sidebar on navigation click on mobile
+        const navButtons = sidebar.querySelectorAll('#sidebar-nav button');
+        navButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                sidebar.classList.remove('active');
+                sidebarOverlay.classList.remove('active');
+            });
+        });
+    }
 });
